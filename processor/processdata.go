@@ -10,7 +10,7 @@ import (
 	"github.com/vijayyogesh/PortfolioApis/data"
 )
 
-func ReadCsv(filePath string) ([]data.CompaniesPriceData, error) {
+func ReadCsv(filePath string, companyid string) ([]data.CompaniesPriceData, error) {
 	var companiesdata []data.CompaniesPriceData
 
 	/* Open file */
@@ -35,7 +35,6 @@ func ReadCsv(filePath string) ([]data.CompaniesPriceData, error) {
 
 	/* Process each record */
 	for k, v := range records {
-		companyid := "HINDUNILVR"
 
 		openval, dataError := strconv.ParseFloat(v[len(v)-6], 64)
 		processDataErr(dataError, k)
@@ -55,6 +54,8 @@ func ReadCsv(filePath string) ([]data.CompaniesPriceData, error) {
 		companiesdata = append(companiesdata, data.CompaniesPriceData{CompanyId: companyid, DateVal: dateval, OpenVal: openval, HighVal: highval, LowVal: lowval, CloseVal: closeval})
 	}
 
+	fmt.Println("Name - " + companyid)
+	fmt.Println(len(companiesdata))
 	return companiesdata, nil
 
 }

@@ -42,10 +42,9 @@ func checkErr(err error) {
 	}
 }
 
-func AddPriceData(dailyPriceRecords []CompaniesPriceData) {
-	/* Insert into database */
-	db := SetupDB()
+func AddPriceData(dailyPriceRecords []CompaniesPriceData, db *sql.DB) {
 
+	fmt.Println(len(dailyPriceRecords))
 	/* Loop and Insert Records */
 	for k, v := range dailyPriceRecords {
 		_, err := db.Exec("INSERT INTO COMPANIES_PRICE_DATA(COMPANY_ID, OPEN_VAL,HIGH_VAL, LOW_VAL, CLOSE_VAL, DATE_VAL) VALUES($1, $2, $3, $4, $5, $6)",
