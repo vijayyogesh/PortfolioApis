@@ -1,16 +1,20 @@
 package processor
 
 import (
+	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/vijayyogesh/PortfolioApis/data"
 )
 
-func ReadCsv(filePath string, companyid string) ([]data.CompaniesPriceData, error) {
+var dailyPriceCache map[string][]data.CompaniesPriceData = make(map[string][]data.CompaniesPriceData)
+
+func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPriceData, error) {
 	var companiesdata []data.CompaniesPriceData
 
 	/* Open file */
@@ -65,4 +69,47 @@ func processDataErr(dataError error, k int) {
 	if dataError != nil {
 		fmt.Println(dataError.Error(), "Error while processing data", k)
 	}
+}
+
+/* Read Data From File & Write into DB asynchronously */
+func LoadPriceData(db *sql.DB) {
+	companies := FetchCompanies(db)
+	fmt.Println(companies)
+	var wg sync.WaitGroup
+
+	for _, company := range companies {
+		wg.Add(1)
+		filePath := "C:\\Users\\Ajay\\Downloads\\" + company.CompanyId + ".NS.csv"
+		fmt.Println(filePath)
+
+		go func(companyid string) {
+			defer wg.Done()
+			var err error
+			companiesdata, err := ReadDailyPriceCsv(filePath, companyid)
+			if err != nil {
+				panic(err)
+			}
+			data.LoadPriceDataDB(companiesdata, db)
+		}(company.CompanyId)
+	}
+	wg.Wait()
+}
+
+/* Fetch Unique Company Ids */
+func FetchCompanies(db *sql.DB) []data.Company {
+	return data.FetchCompaniesDB(db)
+}
+
+/* Fetch Price Data initially from DB and use cache for subsequent requests */
+func FetchCompaniesPrice(companyid string, db *sql.DB) {
+	var dailyPriceRecords []data.CompaniesPriceData
+	if dailyPriceCache[companyid] != nil {
+		fmt.Println("From Cache")
+		dailyPriceRecords = dailyPriceCache[companyid]
+	} else {
+		fmt.Println("From DB")
+		dailyPriceRecords = data.FetchCompaniesPriceDataDB(companyid, db)
+		dailyPriceCache[companyid] = dailyPriceRecords
+	}
+	fmt.Println(len(dailyPriceRecords))
 }
