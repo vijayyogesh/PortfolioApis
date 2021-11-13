@@ -25,11 +25,15 @@ func main() {
 	processor.FetchCompaniesPrice("HINDUNILVR", db)
 	fmt.Println("In main - end tme: " + time.Now().String()) */
 
-	fmt.Println("In main - start tme: " + time.Now().String())
+	/*fmt.Println("In main - start tme: " + time.Now().String())
 	err := processor.DownloadDataFile("TIMKEN")
 	if nil != err {
 		panic(err)
 	}
+	fmt.Println("In main - end tme: " + time.Now().String())*/
+
+	fmt.Println("In main - start tme: " + time.Now().String())
+	processor.FetchAndUpdatePrices(db)
 	fmt.Println("In main - end tme: " + time.Now().String())
 }
 

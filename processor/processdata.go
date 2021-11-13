@@ -16,6 +16,30 @@ import (
 
 var dailyPriceCache map[string][]data.CompaniesPriceData = make(map[string][]data.CompaniesPriceData)
 
+var companiesCache []data.Company
+
+/* Master method that does the following
+1) Download data file based on TS
+2) Load into DB
+*/
+func FetchAndUpdatePrices(db *sql.DB) {
+	companiesData := FetchCompanies(db)
+	var wg sync.WaitGroup
+	for _, company := range companiesData {
+		wg.Add(1)
+		go func(companyId string, fromTime time.Time) {
+			defer wg.Done()
+			if fromTime.IsZero() {
+				fromTime = time.Date(1996, 1, 1, 0, 0, 0, 0, time.UTC)
+			}
+			fmt.Println("fromTime -- ", fromTime)
+			DownloadDataFile(companyId, fromTime)
+		}(company.CompanyId, company.LoadDate)
+	}
+	wg.Wait()
+	LoadPriceData(db)
+}
+
 func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPriceData, error) {
 	var companiesdata []data.CompaniesPriceData
 
@@ -92,14 +116,24 @@ func LoadPriceData(db *sql.DB) {
 				panic(err)
 			}
 			data.LoadPriceDataDB(companiesdata, db)
+			data.UpdateLoadDate(db, companyid, time.Now())
 		}(company.CompanyId)
 	}
 	wg.Wait()
 }
 
-/* Fetch Unique Company Ids */
+/* Fetch Unique Company Details */
 func FetchCompanies(db *sql.DB) []data.Company {
-	return data.FetchCompaniesDB(db)
+	var companies []data.Company
+	if companiesCache != nil {
+		fmt.Println("Fetching Companies Master List From Cache")
+		return companiesCache
+	} else {
+		fmt.Println("Fetching Companies Master List From DB")
+		companies = data.FetchCompaniesDB(db)
+		companiesCache = companies
+		return companies
+	}
 }
 
 /* Fetch Price Data initially from DB and use cache for subsequent requests */
@@ -117,7 +151,7 @@ func FetchCompaniesPrice(companyid string, db *sql.DB) {
 }
 
 /* Download data file from online */
-func DownloadDataFile(companyId string) error {
+func DownloadDataFile(companyId string, fromTime time.Time) error {
 	fmt.Println("Loading file for company " + companyId)
 	filePath := "C:\\Users\\Ajay\\Downloads\\" + companyId + ".NS.csv"
 	url := "https://query1.finance.yahoo.com/v7/finance/download/" + companyId +
@@ -130,7 +164,8 @@ func DownloadDataFile(companyId string) error {
 	defer out.Close()
 
 	/* Form start and end time */
-	startTime := strconv.Itoa(int(time.Date(1996, 1, 1, 0, 0, 0, 0, time.UTC).Unix()))
+	//startTime := strconv.Itoa(int(time.Date(1996, 1, 1, 0, 0, 0, 0, time.UTC).Unix()))
+	startTime := strconv.Itoa(int(fromTime.Unix()))
 	endTime := strconv.Itoa(int(time.Now().Unix()))
 	fmt.Println("Start Time " + startTime + " End Time " + endTime)
 	url = fmt.Sprintf(url, startTime, endTime)

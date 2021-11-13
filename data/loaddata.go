@@ -47,8 +47,9 @@ func LoadPriceDataDB(dailyPriceRecords []CompaniesPriceData, db *sql.DB) {
 	fmt.Println(len(dailyPriceRecords))
 	/* Loop and Insert Records */
 	for k, v := range dailyPriceRecords {
-		_, err := db.Exec("INSERT INTO COMPANIES_PRICE_DATA(COMPANY_ID, OPEN_VAL,HIGH_VAL, LOW_VAL, CLOSE_VAL, DATE_VAL) VALUES($1, $2, $3, $4, $5, $6)",
-			v.CompanyId, v.OpenVal, v.HighVal, v.LowVal, v.CloseVal, v.DateVal)
+		_, err := db.Exec("INSERT INTO COMPANIES_PRICE_DATA(COMPANY_ID, OPEN_VAL,HIGH_VAL, LOW_VAL, CLOSE_VAL, DATE_VAL) VALUES($1, $2, $3, $4, $5, $6) "+
+			" ON CONFLICT(COMPANY_ID, DATE_VAL) DO UPDATE SET CLOSE_VAL = $7 ",
+			v.CompanyId, v.OpenVal, v.HighVal, v.LowVal, v.CloseVal, v.DateVal, v.CloseVal)
 
 		/* Ignoring data errors for now */
 		if err != nil {
@@ -79,17 +80,22 @@ func FetchCompaniesPriceDataDB(companyid string, db *sql.DB) []CompaniesPriceDat
 /* Fetch Unique Company Ids */
 func FetchCompaniesDB(db *sql.DB) []Company {
 	var companies []Company
-	records, err := db.Query("SELECT COMPANY_ID FROM COMPANIES ")
+	records, err := db.Query("SELECT COMPANY_ID, LOAD_DATE FROM COMPANIES ")
 	if err != nil {
 		panic(err.Error())
 	}
 	for records.Next() {
 		var company Company
-		err := records.Scan(&company.CompanyId)
+		err := records.Scan(&company.CompanyId, &company.LoadDate)
 		if err != nil {
 			fmt.Println(err.Error(), "Error scanning record ")
 		}
 		companies = append(companies, company)
 	}
 	return companies
+}
+
+func UpdateLoadDate(db *sql.DB, companyId string, loadDate time.Time) {
+	fmt.Println("comp id - ", companyId)
+	db.Exec("UPDATE COMPANIES SET LOAD_DATE = $1 WHERE COMPANY_ID = $2 ", loadDate, companyId)
 }
