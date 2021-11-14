@@ -23,7 +23,32 @@ var companiesCache []data.Company
 2) Load into DB
 */
 func FetchAndUpdatePrices(db *sql.DB) {
+	//Fetch Unique Company Details
 	companiesData := FetchCompanies(db)
+
+	//Download data file in parallel
+	DownloadDataAsync(companiesData)
+
+	//Read Data From File & Write into DB asynchronously
+	LoadPriceData(db)
+}
+
+/* Fetch Unique Company Details */
+func FetchCompanies(db *sql.DB) []data.Company {
+	var companies []data.Company
+	if companiesCache != nil {
+		fmt.Println("Fetching Companies Master List From Cache")
+		return companiesCache
+	} else {
+		fmt.Println("Fetching Companies Master List From DB")
+		companies = data.FetchCompaniesDB(db)
+		companiesCache = companies
+		return companies
+	}
+}
+
+/* Call DownloadDataFile from go routine */
+func DownloadDataAsync(companiesData []data.Company) {
 	var wg sync.WaitGroup
 	for _, company := range companiesData {
 		wg.Add(1)
@@ -37,7 +62,75 @@ func FetchAndUpdatePrices(db *sql.DB) {
 		}(company.CompanyId, company.LoadDate)
 	}
 	wg.Wait()
-	LoadPriceData(db)
+}
+
+/* Download data file from online */
+func DownloadDataFile(companyId string, fromTime time.Time) error {
+	fmt.Println("Loading file for company " + companyId)
+	filePath := "C:\\Users\\Ajay\\Downloads\\" + companyId + ".NS.csv"
+	url := "https://query1.finance.yahoo.com/v7/finance/download/" + companyId +
+		".NS?period1=%s&period2=%s&interval=1d&events=history&includeAdjustedClose=true"
+
+	out, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	/* Form start and end time */
+	//startTime := strconv.Itoa(int(time.Date(1996, 1, 1, 0, 0, 0, 0, time.UTC).Unix()))
+	startTime := strconv.Itoa(int(fromTime.Unix()))
+	endTime := strconv.Itoa(int(time.Now().Unix()))
+	fmt.Println("Start Time " + startTime + " End Time " + endTime)
+	url = fmt.Sprintf(url, startTime, endTime)
+	fmt.Println("filePath " + filePath)
+	fmt.Println("url " + url)
+
+	/* Get the data from Yahoo Finance */
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	/* Check server response */
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad status: %s", resp.Status)
+	}
+
+	/* Writer the body to file */
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Finished loading file for company " + companyId)
+	return nil
+}
+
+/* Read Data From File & Write into DB asynchronously */
+func LoadPriceData(db *sql.DB) {
+	companies := FetchCompanies(db)
+	fmt.Println(companies)
+	var wg sync.WaitGroup
+
+	for _, company := range companies {
+		wg.Add(1)
+		filePath := "C:\\Users\\Ajay\\Downloads\\" + company.CompanyId + ".NS.csv"
+		fmt.Println(filePath)
+
+		go func(companyid string) {
+			defer wg.Done()
+			var err error
+			companiesdata, err := ReadDailyPriceCsv(filePath, companyid)
+			if err != nil {
+				panic(err)
+			}
+			data.LoadPriceDataDB(companiesdata, db)
+			data.UpdateLoadDate(db, companyid, time.Now())
+		}(company.CompanyId)
+	}
+	wg.Wait()
 }
 
 func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPriceData, error) {
@@ -97,45 +190,6 @@ func processDataErr(dataError error, k int) {
 	}
 }
 
-/* Read Data From File & Write into DB asynchronously */
-func LoadPriceData(db *sql.DB) {
-	companies := FetchCompanies(db)
-	fmt.Println(companies)
-	var wg sync.WaitGroup
-
-	for _, company := range companies {
-		wg.Add(1)
-		filePath := "C:\\Users\\Ajay\\Downloads\\" + company.CompanyId + ".NS.csv"
-		fmt.Println(filePath)
-
-		go func(companyid string) {
-			defer wg.Done()
-			var err error
-			companiesdata, err := ReadDailyPriceCsv(filePath, companyid)
-			if err != nil {
-				panic(err)
-			}
-			data.LoadPriceDataDB(companiesdata, db)
-			data.UpdateLoadDate(db, companyid, time.Now())
-		}(company.CompanyId)
-	}
-	wg.Wait()
-}
-
-/* Fetch Unique Company Details */
-func FetchCompanies(db *sql.DB) []data.Company {
-	var companies []data.Company
-	if companiesCache != nil {
-		fmt.Println("Fetching Companies Master List From Cache")
-		return companiesCache
-	} else {
-		fmt.Println("Fetching Companies Master List From DB")
-		companies = data.FetchCompaniesDB(db)
-		companiesCache = companies
-		return companies
-	}
-}
-
 /* Fetch Price Data initially from DB and use cache for subsequent requests */
 func FetchCompaniesPrice(companyid string, db *sql.DB) {
 	var dailyPriceRecords []data.CompaniesPriceData
@@ -148,48 +202,4 @@ func FetchCompaniesPrice(companyid string, db *sql.DB) {
 		dailyPriceCache[companyid] = dailyPriceRecords
 	}
 	fmt.Println(len(dailyPriceRecords))
-}
-
-/* Download data file from online */
-func DownloadDataFile(companyId string, fromTime time.Time) error {
-	fmt.Println("Loading file for company " + companyId)
-	filePath := "C:\\Users\\Ajay\\Downloads\\" + companyId + ".NS.csv"
-	url := "https://query1.finance.yahoo.com/v7/finance/download/" + companyId +
-		".NS?period1=%s&period2=%s&interval=1d&events=history&includeAdjustedClose=true"
-
-	out, err := os.Create(filePath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	/* Form start and end time */
-	//startTime := strconv.Itoa(int(time.Date(1996, 1, 1, 0, 0, 0, 0, time.UTC).Unix()))
-	startTime := strconv.Itoa(int(fromTime.Unix()))
-	endTime := strconv.Itoa(int(time.Now().Unix()))
-	fmt.Println("Start Time " + startTime + " End Time " + endTime)
-	url = fmt.Sprintf(url, startTime, endTime)
-	fmt.Println("filePath " + filePath)
-	fmt.Println("url " + url)
-
-	/* Get the data from Yahoo Finance */
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	/* Check server response */
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status: %s", resp.Status)
-	}
-
-	/* Writer the body to file */
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("Finished loading file for company " + companyId)
-	return nil
 }
