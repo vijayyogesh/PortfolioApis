@@ -158,23 +158,25 @@ func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPrice
 
 	/* Process each record */
 	for k, v := range records {
+		if k != 0 {
 
-		openval, dataError := strconv.ParseFloat(v[len(v)-6], 64)
-		processDataErr(dataError, k)
+			openval, dataError := strconv.ParseFloat(v[len(v)-6], 64)
+			processDataErr(dataError, k)
 
-		highval, dataError := strconv.ParseFloat(v[len(v)-5], 64)
-		processDataErr(dataError, k)
+			highval, dataError := strconv.ParseFloat(v[len(v)-5], 64)
+			processDataErr(dataError, k)
 
-		lowval, dataError := strconv.ParseFloat(v[len(v)-4], 64)
-		processDataErr(dataError, k)
+			lowval, dataError := strconv.ParseFloat(v[len(v)-4], 64)
+			processDataErr(dataError, k)
 
-		closeval, dataError := strconv.ParseFloat(v[len(v)-3], 64)
-		processDataErr(dataError, k)
+			closeval, dataError := strconv.ParseFloat(v[len(v)-3], 64)
+			processDataErr(dataError, k)
 
-		dateval, dataError := time.Parse("2006-01-02", v[len(v)-7])
-		processDataErr(dataError, k)
+			dateval, dataError := time.Parse("2006-01-02", v[len(v)-7])
+			processDataErr(dataError, k)
 
-		companiesdata = append(companiesdata, data.CompaniesPriceData{CompanyId: companyid, DateVal: dateval, OpenVal: openval, HighVal: highval, LowVal: lowval, CloseVal: closeval})
+			companiesdata = append(companiesdata, data.CompaniesPriceData{CompanyId: companyid, DateVal: dateval, OpenVal: openval, HighVal: highval, LowVal: lowval, CloseVal: closeval})
+		}
 	}
 
 	fmt.Println("Name - " + companyid)
@@ -202,4 +204,99 @@ func FetchCompaniesPrice(companyid string, db *sql.DB) {
 		dailyPriceCache[companyid] = dailyPriceRecords
 	}
 	fmt.Println(len(dailyPriceRecords))
+}
+
+func FetchAndUpdateCompaniesMasterList(db *sql.DB) {
+
+	//Download data file in parallel
+	DownloadCompaniesMaster()
+
+	//Read Data From File & Write into DB asynchronously
+	LoadCompaniesMaster(db)
+}
+
+/* Download data file from online */
+func DownloadCompaniesMaster() error {
+	fmt.Println("Loading Companies Master List ")
+	filePath := "C:\\Users\\Ajay\\Downloads\\" + "TOP200" + ".csv"
+	url := "https://www1.nseindia.com/content/indices/ind_nifty200list.csv"
+
+	out, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	/* Get the data from NSE INDIA */
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	/* Check server response */
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad status: %s", resp.Status)
+	}
+
+	/* Writer the body to file */
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Finished downloading Companies Master List File")
+	return nil
+}
+
+/* Read Companies Master Data From File & Write into DB  */
+func LoadCompaniesMaster(db *sql.DB) {
+	companiesMasterList, err := ReadCompaniesMasterCsv("C:\\Users\\Ajay\\Downloads\\" + "TOP200" + ".csv")
+	if err == nil {
+		LoadCompaniesMasterList(db, companiesMasterList)
+	}
+}
+
+/* Write Companies Master List into DB */
+func LoadCompaniesMasterList(db *sql.DB, companiesMasterList []data.Company) {
+	data.LoadCompaniesMasterListDB(companiesMasterList, db)
+}
+
+func ReadCompaniesMasterCsv(filePath string) ([]data.Company, error) {
+	var companiesMasterList []data.Company
+
+	/* Open file */
+	file, err := os.Open(filePath)
+	/* Return if error opening file */
+	if err != nil {
+		fmt.Println(err.Error(), "Error while opening file ")
+		return companiesMasterList, fmt.Errorf("error while opening file %s ", filePath)
+	}
+	fmt.Println(file.Name())
+
+	/* Read csv */
+	csvReader := csv.NewReader(file)
+	records, err := csvReader.ReadAll()
+	/* Return if error */
+	if err != nil {
+		fmt.Println(err.Error(), "Error while reading csv ")
+		return companiesMasterList, fmt.Errorf("error while reading csv %s ", filePath)
+	}
+	/* Close resources */
+	file.Close()
+
+	/* Process each record */
+	for k, v := range records {
+		/* Ignore first record */
+		if k != 0 {
+			companyid := v[len(v)-3]
+			companyname := v[len(v)-5]
+			companiesMasterList = append(companiesMasterList, data.Company{CompanyId: companyid, CompanyName: companyname})
+		}
+	}
+
+	fmt.Println(len(companiesMasterList))
+	fmt.Println((companiesMasterList))
+	return companiesMasterList, nil
+
 }

@@ -31,6 +31,7 @@ const (
 func SetupDB() *sql.DB {
 	dbinfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable", DB_USER, DB_PASSWORD, DB_NAME)
 	db, err := sql.Open("postgres", dbinfo)
+	db.SetMaxOpenConns(20)
 	checkErr(err)
 	return db
 }
@@ -66,6 +67,7 @@ func FetchCompaniesPriceDataDB(companyid string, db *sql.DB) []CompaniesPriceDat
 	if err != nil {
 		panic(err.Error())
 	}
+	defer records.Close()
 	for records.Next() {
 		var dailyRecord CompaniesPriceData
 		err := records.Scan(&dailyRecord.DateVal, &dailyRecord.CloseVal)
@@ -84,6 +86,7 @@ func FetchCompaniesDB(db *sql.DB) []Company {
 	if err != nil {
 		panic(err.Error())
 	}
+	defer records.Close()
 	for records.Next() {
 		var company Company
 		err := records.Scan(&company.CompanyId, &company.LoadDate)
@@ -98,4 +101,20 @@ func FetchCompaniesDB(db *sql.DB) []Company {
 func UpdateLoadDate(db *sql.DB, companyId string, loadDate time.Time) {
 	fmt.Println("comp id - ", companyId)
 	db.Exec("UPDATE COMPANIES SET LOAD_DATE = $1 WHERE COMPANY_ID = $2 ", loadDate, companyId)
+}
+
+func LoadCompaniesMasterListDB(companiesMasterList []Company, db *sql.DB) {
+
+	/* Loop and Insert Records */
+	for k, v := range companiesMasterList {
+		_, err := db.Exec("INSERT INTO COMPANIES(COMPANY_ID, COMPANY_NAME) VALUES($1, $2) "+
+			" ON CONFLICT(COMPANY_ID) DO NOTHING ",
+			v.CompanyId, v.CompanyName)
+
+		/* Ignoring data errors for now */
+		if err != nil {
+			fmt.Println(err.Error(), " Error while inserting Record : ", k)
+		}
+	}
+	fmt.Println("Inserted Companies Master List")
 }

@@ -19,8 +19,13 @@ func main() {
 	processor.FetchAndUpdatePrices(db)
 	fmt.Println("In main - end tme: " + time.Now().String()) */
 
+	/*fmt.Println("In main - start tme: " + time.Now().String())
+	processor.FetchAndUpdateCompaniesMasterList(db)
+	fmt.Println("In main - end tme: " + time.Now().String()) */
+
 	http.Handle("/PortfolioApis/refresh", *appC)
 	http.ListenAndServe(":3000", nil)
+
 }
 
 func init() {
