@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/vijayyogesh/PortfolioApis/data"
@@ -24,10 +25,10 @@ var companiesCache []data.Company
 */
 func FetchAndUpdatePrices(db *sql.DB) {
 	//Fetch Unique Company Details
-	companiesData := FetchCompanies(db)
+	//companiesData := FetchCompanies(db)
 
 	//Download data file in parallel
-	DownloadDataAsync(companiesData)
+	//DownloadDataAsync(companiesData)
 
 	//Read Data From File & Write into DB asynchronously
 	LoadPriceData(db)
@@ -57,7 +58,7 @@ func DownloadDataAsync(companiesData []data.Company) {
 			if fromTime.IsZero() {
 				fromTime = time.Date(1996, 1, 1, 0, 0, 0, 0, time.UTC)
 			}
-			fmt.Println("fromTime -- ", fromTime)
+			//fmt.Println("fromTime -- ", fromTime)
 			DownloadDataFile(companyId, fromTime)
 		}(company.CompanyId, company.LoadDate)
 	}
@@ -66,7 +67,7 @@ func DownloadDataAsync(companiesData []data.Company) {
 
 /* Download data file from online */
 func DownloadDataFile(companyId string, fromTime time.Time) error {
-	fmt.Println("Loading file for company " + companyId)
+	//fmt.Println("Loading file for company " + companyId)
 	filePath := "C:\\Users\\Ajay\\Downloads\\" + companyId + ".NS.csv"
 	url := "https://query1.finance.yahoo.com/v7/finance/download/" + companyId +
 		".NS?period1=%s&period2=%s&interval=1d&events=history&includeAdjustedClose=true"
@@ -81,10 +82,10 @@ func DownloadDataFile(companyId string, fromTime time.Time) error {
 	//startTime := strconv.Itoa(int(time.Date(1996, 1, 1, 0, 0, 0, 0, time.UTC).Unix()))
 	startTime := strconv.Itoa(int(fromTime.Unix()))
 	endTime := strconv.Itoa(int(time.Now().Unix()))
-	fmt.Println("Start Time " + startTime + " End Time " + endTime)
+	//fmt.Println("Start Time " + startTime + " End Time " + endTime)
 	url = fmt.Sprintf(url, startTime, endTime)
-	fmt.Println("filePath " + filePath)
-	fmt.Println("url " + url)
+	//fmt.Println("filePath " + filePath)
+	//fmt.Println("url " + url)
 
 	/* Get the data from Yahoo Finance */
 	resp, err := http.Get(url)
@@ -111,7 +112,8 @@ func DownloadDataFile(companyId string, fromTime time.Time) error {
 /* Read Data From File & Write into DB asynchronously */
 func LoadPriceData(db *sql.DB) {
 	companies := FetchCompanies(db)
-	fmt.Println(companies)
+	//fmt.Println(companies)
+	var totRecordsCount int64
 	var wg sync.WaitGroup
 
 	for _, company := range companies {
@@ -122,18 +124,21 @@ func LoadPriceData(db *sql.DB) {
 		go func(companyid string) {
 			defer wg.Done()
 			var err error
-			companiesdata, err := ReadDailyPriceCsv(filePath, companyid)
+			companiesdata, err, recordsCount := ReadDailyPriceCsv(filePath, companyid)
 			if err != nil {
 				panic(err)
 			}
+			fmt.Println(companyid, " - ", recordsCount)
+			atomic.AddInt64(&totRecordsCount, int64(recordsCount))
 			data.LoadPriceDataDB(companiesdata, db)
 			data.UpdateLoadDate(db, companyid, time.Now())
 		}(company.CompanyId)
 	}
 	wg.Wait()
+	fmt.Println(totRecordsCount)
 }
 
-func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPriceData, error) {
+func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPriceData, error, int) {
 	var companiesdata []data.CompaniesPriceData
 
 	/* Open file */
@@ -141,7 +146,7 @@ func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPrice
 	/* Return if error */
 	if err != nil {
 		fmt.Println(err.Error(), "Error while opening file ")
-		return companiesdata, fmt.Errorf("error while opening file %s ", filePath)
+		return companiesdata, fmt.Errorf("error while opening file %s ", filePath), 0
 	}
 	fmt.Println(file.Name())
 
@@ -151,7 +156,7 @@ func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPrice
 	/* Return if error */
 	if err != nil {
 		fmt.Println(err.Error(), "Error while reading csv ")
-		return companiesdata, fmt.Errorf("error while reading csv %s ", filePath)
+		return companiesdata, fmt.Errorf("error while reading csv %s ", filePath), 0
 	}
 	/* Close resources */
 	file.Close()
@@ -180,8 +185,8 @@ func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPrice
 	}
 
 	fmt.Println("Name - " + companyid)
-	fmt.Println(len(companiesdata))
-	return companiesdata, nil
+	//fmt.Println(len(companiesdata))
+	return companiesdata, nil, len(companiesdata)
 
 }
 
