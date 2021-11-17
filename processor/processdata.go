@@ -25,10 +25,10 @@ var companiesCache []data.Company
 */
 func FetchAndUpdatePrices(db *sql.DB) {
 	//Fetch Unique Company Details
-	//companiesData := FetchCompanies(db)
+	companiesData := FetchCompanies(db)
 
 	//Download data file in parallel
-	//DownloadDataAsync(companiesData)
+	DownloadDataAsync(companiesData)
 
 	//Read Data From File & Write into DB asynchronously
 	LoadPriceData(db)

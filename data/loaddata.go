@@ -3,6 +3,7 @@ package data
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -44,19 +45,25 @@ func checkErr(err error) {
 }
 
 func LoadPriceDataDB(dailyPriceRecords []CompaniesPriceData, db *sql.DB) {
-
+	valueStrings := make([]string, 0, len(dailyPriceRecords))
+	valueArgs := make([]interface{}, 0, len(dailyPriceRecords)*6)
 	fmt.Println(len(dailyPriceRecords))
-	/* Loop and Insert Records */
-	for k, v := range dailyPriceRecords {
-		_, err := db.Exec("INSERT INTO COMPANIES_PRICE_DATA(COMPANY_ID, OPEN_VAL,HIGH_VAL, LOW_VAL, CLOSE_VAL, DATE_VAL) VALUES($1, $2, $3, $4, $5, $6) "+
-			" ON CONFLICT(COMPANY_ID, DATE_VAL) DO UPDATE SET CLOSE_VAL = $7 ",
-			v.CompanyId, v.OpenVal, v.HighVal, v.LowVal, v.CloseVal, v.DateVal, v.CloseVal)
 
-		/* Ignoring data errors for now */
-		if err != nil {
-			fmt.Println(err.Error(), " Error while inserting Record : ", k)
-		}
+	/* Loop and Bulk Insert Records */
+	for k, v := range dailyPriceRecords {
+		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)", k*6+1, k*6+2, k*6+3, k*6+4, k*6+5, k*6+6))
+		valueArgs = append(valueArgs, v.CompanyId, v.OpenVal, v.HighVal, v.LowVal, v.CloseVal, v.DateVal)
 	}
+	stmt := fmt.Sprintf("INSERT INTO COMPANIES_PRICE_DATA(COMPANY_ID, OPEN_VAL,HIGH_VAL, LOW_VAL, CLOSE_VAL, DATE_VAL) VALUES %s "+
+		" ON CONFLICT(COMPANY_ID, DATE_VAL) DO UPDATE SET CLOSE_VAL = excluded.CLOSE_VAL ", strings.Join(valueStrings, ","))
+
+	_, err := db.Exec(stmt, valueArgs...)
+
+	/* Ignoring data errors for now */
+	if err != nil {
+		fmt.Println(err.Error(), " Error while inserting Record : ")
+	}
+
 	fmt.Println("Inserted")
 }
 
