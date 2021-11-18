@@ -23,7 +23,10 @@ func main() {
 	processor.FetchAndUpdateCompaniesMasterList(db)
 	fmt.Println("In main - end tme: " + time.Now().String()) */
 
-	http.Handle("/PortfolioApis/refresh", *appC)
+	/*http.Handle("/PortfolioApis/refresh", *appC)
+	http.ListenAndServe(":3000", nil)*/
+
+	http.Handle("/PortfolioApis/adduser", *appC)
 	http.ListenAndServe(":3000", nil)
 
 }

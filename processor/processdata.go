@@ -305,3 +305,8 @@ func ReadCompaniesMasterCsv(filePath string) ([]data.Company, error) {
 	return companiesMasterList, nil
 
 }
+
+/* User Profiles */
+func AddUser() {
+	fmt.Println("In Add User")
+}
