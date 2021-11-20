@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -22,11 +23,16 @@ func NewAppController(dbRef *sql.DB) *AppController {
 func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("In Serve HTTP")
 	//processor.FetchAndUpdatePrices(appC.db)
-	if r.URL.Path == "/PortfolioApis/adduser" {
+
+	if (r.URL.Path == "/PortfolioApis/adduser") && (r.Method == http.MethodPost) {
 		reqBody, _ := ioutil.ReadAll(r.Body)
-		//fmt.Fprintf(w, "%+v", string(reqBody))
-		fmt.Println(string(reqBody))
-		processor.AddUser()
+		msg := processor.AddUser(reqBody, appC.db)
+		json.NewEncoder(w).Encode(msg)
+	} else if (r.URL.Path == "/PortfolioApis/adduserholdings") && (r.Method == http.MethodPost) {
+		reqBody, _ := ioutil.ReadAll(r.Body)
+		msg := processor.AddUserHoldings(reqBody, appC.db)
+		json.NewEncoder(w).Encode(msg)
 	}
+
 	fmt.Println("Exiting Serve HTTP")
 }

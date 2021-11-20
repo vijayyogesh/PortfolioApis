@@ -22,6 +22,20 @@ type CompaniesPriceData struct {
 	DateVal   time.Time
 }
 
+type User struct {
+	UserId    string
+	StartDate time.Time
+}
+
+type HoldingsInputJson struct {
+	UserID   string `json:"userId"`
+	Holdings []struct {
+		Companyid string `json:"companyid"`
+		Quantity  string `json:"quantity"`
+		BuyDate   string `json:"buyDate"`
+	} `json:"Holdings"`
+}
+
 const (
 	DB_USER     = "postgres"
 	DB_PASSWORD = "phorrj"
@@ -124,4 +138,12 @@ func LoadCompaniesMasterListDB(companiesMasterList []Company, db *sql.DB) {
 		}
 	}
 	fmt.Println("Inserted Companies Master List")
+}
+
+func AddUserDB(user User, db *sql.DB) error {
+	_, err := db.Exec("INSERT INTO USERS(USER_ID, START_DATE) VALUES($1, $2) ", user.UserId, user.StartDate)
+	if err != nil {
+		return err
+	}
+	return nil
 }

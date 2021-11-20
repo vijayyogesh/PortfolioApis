@@ -27,6 +27,7 @@ func main() {
 	http.ListenAndServe(":3000", nil)*/
 
 	http.Handle("/PortfolioApis/adduser", *appC)
+	http.Handle("/PortfolioApis/adduserholdings", *appC)
 	http.ListenAndServe(":3000", nil)
 
 }

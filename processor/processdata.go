@@ -3,6 +3,7 @@ package processor
 import (
 	"database/sql"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -307,6 +308,33 @@ func ReadCompaniesMasterCsv(filePath string) ([]data.Company, error) {
 }
 
 /* User Profiles */
-func AddUser() {
+func AddUser(userInput []byte, db *sql.DB) string {
 	fmt.Println("In Add User")
+	var user data.User
+
+	json.Unmarshal(userInput, &user)
+	user.StartDate = time.Now()
+
+	err := data.AddUserDB(user, db)
+	if err != nil {
+		fmt.Println(err)
+		return "Error while adding new User"
+	}
+	return "Added successfully"
+}
+
+func AddUserHoldings(userInput []byte, db *sql.DB) string {
+	fmt.Println("In Add User Holdings")
+	var holdingsInput data.HoldingsInputJson
+
+	json.Unmarshal(userInput, &holdingsInput)
+
+	fmt.Println(holdingsInput)
+
+	/*err := data.AddUserDB(user, db)
+	if err != nil {
+		fmt.Println(err)
+		return "Error while adding new User"
+	}*/
+	return "Added User Holdings successfully"
 }
