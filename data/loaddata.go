@@ -147,3 +147,33 @@ func AddUserDB(user User, db *sql.DB) error {
 	}
 	return nil
 }
+
+func AddUserHoldingsDB(userHoldings HoldingsInputJson, db *sql.DB) error {
+	userId := userHoldings.UserID
+	for _, company := range userHoldings.Holdings {
+		_, err := db.Exec("INSERT INTO USER_HOLDINGS(USER_ID, COMPANY_ID, QUANTITY, BUY_DATE) VALUES($1, $2, $3, $4) ",
+			userId, company.Companyid, company.Quantity, company.BuyDate)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func FetchUniqueUsersDB(db *sql.DB) []User {
+	var users []User
+	records, err := db.Query("SELECT USER_ID FROM USERS ")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer records.Close()
+	for records.Next() {
+		var user User
+		err := records.Scan(&user.UserId)
+		if err != nil {
+			fmt.Println(err.Error(), "Error scanning record ")
+		}
+		users = append(users, user)
+	}
+	return users
+}

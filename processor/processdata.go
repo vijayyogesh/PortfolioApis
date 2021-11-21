@@ -20,6 +20,8 @@ var dailyPriceCache map[string][]data.CompaniesPriceData = make(map[string][]dat
 
 var companiesCache []data.Company
 
+var usersCache map[string]data.User = make(map[string]data.User)
+
 /* Master method that does the following
 1) Download data file based on TS
 2) Load into DB
@@ -320,6 +322,8 @@ func AddUser(userInput []byte, db *sql.DB) string {
 		fmt.Println(err)
 		return "Error while adding new User"
 	}
+	/* Add to cache too */
+	usersCache[user.UserId] = user
 	return "Added successfully"
 }
 
@@ -328,13 +332,35 @@ func AddUserHoldings(userInput []byte, db *sql.DB) string {
 	var holdingsInput data.HoldingsInputJson
 
 	json.Unmarshal(userInput, &holdingsInput)
-
 	fmt.Println(holdingsInput)
 
-	/*err := data.AddUserDB(user, db)
-	if err != nil {
-		fmt.Println(err)
-		return "Error while adding new User"
-	}*/
-	return "Added User Holdings successfully"
+	isUserPresent := verifyUserId(holdingsInput.UserID, db)
+	if isUserPresent {
+		err := data.AddUserHoldingsDB(holdingsInput, db)
+		if err != nil {
+			fmt.Println(err)
+			return "Error while adding new User"
+		}
+		return "Added User Holdings successfully"
+	}
+	return "Invalid User"
+}
+
+func verifyUserId(userid string, db *sql.DB) bool {
+	fmt.Println(userid)
+	/* Populate cahce first time */
+	if len(usersCache) == 0 {
+		users := data.FetchUniqueUsersDB(db)
+		for _, user := range users {
+			usersCache[user.UserId] = user
+		}
+		fmt.Println("Loaded User Data In Cache")
+	}
+
+	if _, isPresent := usersCache[userid]; isPresent {
+		fmt.Println("User data available in Cache")
+		return true
+	}
+	return false
+
 }
