@@ -364,3 +364,21 @@ func verifyUserId(userid string, db *sql.DB) bool {
 	return false
 
 }
+
+func GetUserHoldings(userInput []byte, db *sql.DB) data.HoldingsOutputJson {
+	var userHoldings data.HoldingsOutputJson
+
+	var user data.User
+	json.Unmarshal(userInput, &user)
+	fmt.Println(user)
+
+	isUserPresent := verifyUserId(user.UserId, db)
+	if isUserPresent {
+		holdings, err := data.GetUserHoldingsDB(user.UserId, db)
+		if err != nil {
+			fmt.Println(err)
+		}
+		userHoldings = holdings
+	}
+	return userHoldings
+}

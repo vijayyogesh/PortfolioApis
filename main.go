@@ -28,6 +28,7 @@ func main() {
 
 	http.Handle("/PortfolioApis/adduser", *appC)
 	http.Handle("/PortfolioApis/adduserholdings", *appC)
+	http.Handle("/PortfolioApis/getuserholdings", *appC)
 	http.ListenAndServe(":3000", nil)
 
 }

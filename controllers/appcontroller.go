@@ -32,6 +32,10 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reqBody, _ := ioutil.ReadAll(r.Body)
 		msg := processor.AddUserHoldings(reqBody, appC.db)
 		json.NewEncoder(w).Encode(msg)
+	} else if (r.URL.Path == "/PortfolioApis/getuserholdings") && (r.Method == http.MethodPost) {
+		reqBody, _ := ioutil.ReadAll(r.Body)
+		msg := processor.GetUserHoldings(reqBody, appC.db)
+		json.NewEncoder(w).Encode(msg)
 	}
 
 	fmt.Println("Exiting Serve HTTP")

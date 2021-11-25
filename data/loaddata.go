@@ -36,6 +36,18 @@ type HoldingsInputJson struct {
 	} `json:"Holdings"`
 }
 
+type HoldingsOutputJson struct {
+	UserID   string `json:"userId"`
+	Holdings []Holdings
+	Networth string `json:"Networth"`
+}
+
+type Holdings struct {
+	Companyid string `json:"companyid"`
+	Quantity  string `json:"quantity"`
+	BuyDate   string `json:"buyDate"`
+}
+
 const (
 	DB_USER     = "postgres"
 	DB_PASSWORD = "phorrj"
@@ -176,4 +188,28 @@ func FetchUniqueUsersDB(db *sql.DB) []User {
 		users = append(users, user)
 	}
 	return users
+}
+
+func GetUserHoldingsDB(userid string, db *sql.DB) (HoldingsOutputJson, error) {
+	var holdingsOutputJson HoldingsOutputJson
+
+	records, err := db.Query("SELECT HOLDINGS.USER_ID, HOLDINGS.COMPANY_ID, HOLDINGS.QUANTITY, HOLDINGS.BUY_DATE FROM USERS USERS, USER_HOLDINGS HOLDINGS "+
+		"WHERE USERS.USER_ID = HOLDINGS.USER_ID AND USERS.USER_ID = $1", userid)
+	if err != nil {
+		fmt.Println(err.Error(), "Error reading record ")
+		return holdingsOutputJson, err
+	}
+	defer records.Close()
+
+	for records.Next() {
+		var holdings Holdings
+		var userid string
+		records.Scan(&userid, &holdings.Companyid, &holdings.Quantity, &holdings.BuyDate)
+		if err != nil {
+			fmt.Println(err.Error(), "Error scanning record ")
+		}
+		holdingsOutputJson.Holdings = append(holdingsOutputJson.Holdings, holdings)
+	}
+	holdingsOutputJson.UserID = userid
+	return holdingsOutputJson, nil
 }
