@@ -18,6 +18,8 @@ import (
 
 var dailyPriceCache map[string][]data.CompaniesPriceData = make(map[string][]data.CompaniesPriceData)
 
+var dailyPriceCacheLatest map[string]data.CompaniesPriceData = make(map[string]data.CompaniesPriceData)
+
 var companiesCache []data.Company
 
 var usersCache map[string]data.User = make(map[string]data.User)
@@ -200,18 +202,32 @@ func processDataErr(dataError error, k int) {
 	}
 }
 
-/* Fetch Price Data initially from DB and use cache for subsequent requests */
-func FetchCompaniesPrice(companyid string, db *sql.DB) {
+/* Fetch All Price Data initially from DB and use cache for subsequent requests */
+func FetchAllCompaniesCompletePrice(companyid string, db *sql.DB) {
 	var dailyPriceRecords []data.CompaniesPriceData
 	if dailyPriceCache[companyid] != nil {
 		fmt.Println("From Cache")
 		dailyPriceRecords = dailyPriceCache[companyid]
 	} else {
 		fmt.Println("From DB")
-		dailyPriceRecords = data.FetchCompaniesPriceDataDB(companyid, db)
+		dailyPriceRecords = data.FetchCompaniesCompletePriceDataDB(companyid, db)
 		dailyPriceCache[companyid] = dailyPriceRecords
 	}
 	fmt.Println(len(dailyPriceRecords))
+}
+
+/* Fetch Latest Price Data from DB and use cache for subsequent requests */
+func FetchLatestCompaniesCompletePrice(companyid string, db *sql.DB) {
+	var dailyPriceRecordsLatest data.CompaniesPriceData
+	if dailyPriceCache[companyid] != nil {
+		fmt.Println("From Cache")
+		dailyPriceRecordsLatest = dailyPriceCacheLatest[companyid]
+	} else {
+		fmt.Println("From DB")
+		dailyPriceRecordsLatest = data.FetchCompaniesLatestPriceDataDB(companyid, db)
+		dailyPriceCacheLatest[companyid] = dailyPriceRecordsLatest
+	}
+	fmt.Println(dailyPriceRecordsLatest)
 }
 
 func FetchAndUpdateCompaniesMasterList(db *sql.DB) {
@@ -380,5 +396,23 @@ func GetUserHoldings(userInput []byte, db *sql.DB) data.HoldingsOutputJson {
 		}
 		userHoldings = holdings
 	}
+	calculateNW(&userHoldings, db)
 	return userHoldings
+}
+
+func calculateNW(userHoldings *data.HoldingsOutputJson, db *sql.DB) {
+	var NW float64
+	for _, holding := range userHoldings.Holdings {
+		FetchLatestCompaniesCompletePrice(holding.Companyid, db)
+		latestPriceData := dailyPriceCacheLatest[holding.Companyid]
+		qty, errQty := strconv.ParseFloat(holding.Quantity, 64)
+		if errQty != nil {
+			fmt.Println(errQty)
+		}
+
+		NW = NW + (latestPriceData.CloseVal * qty)
+		fmt.Println(latestPriceData.CloseVal)
+	}
+
+	userHoldings.Networth = fmt.Sprintf("%f", NW)
 }

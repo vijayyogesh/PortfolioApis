@@ -3,6 +3,7 @@ package data
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -29,11 +30,7 @@ type User struct {
 
 type HoldingsInputJson struct {
 	UserID   string `json:"userId"`
-	Holdings []struct {
-		Companyid string `json:"companyid"`
-		Quantity  string `json:"quantity"`
-		BuyDate   string `json:"buyDate"`
-	} `json:"Holdings"`
+	Holdings []Holdings
 }
 
 type HoldingsOutputJson struct {
@@ -46,6 +43,7 @@ type Holdings struct {
 	Companyid string `json:"companyid"`
 	Quantity  string `json:"quantity"`
 	BuyDate   string `json:"buyDate"`
+	BuyPrice  string `json:"buyPrice"`
 }
 
 const (
@@ -93,8 +91,8 @@ func LoadPriceDataDB(dailyPriceRecords []CompaniesPriceData, db *sql.DB) {
 	fmt.Println("Inserted")
 }
 
-/* Fetch Price Data for a given company */
-func FetchCompaniesPriceDataDB(companyid string, db *sql.DB) []CompaniesPriceData {
+/* Fetch All Price Data for a given company */
+func FetchCompaniesCompletePriceDataDB(companyid string, db *sql.DB) []CompaniesPriceData {
 	var dailyPriceRecords []CompaniesPriceData
 	records, err := db.Query("SELECT DATE_VAL, CLOSE_VAL FROM COMPANIES_PRICE_DATA WHERE COMPANY_ID = $1 ", companyid)
 	if err != nil {
@@ -109,6 +107,24 @@ func FetchCompaniesPriceDataDB(companyid string, db *sql.DB) []CompaniesPriceDat
 		}
 		dailyPriceRecords = append(dailyPriceRecords, dailyRecord)
 	}
+	return dailyPriceRecords
+}
+
+/* Fetch Latest Price Data for a given company */
+func FetchCompaniesLatestPriceDataDB(companyid string, db *sql.DB) CompaniesPriceData {
+	var dailyPriceRecords CompaniesPriceData
+	records, err := db.Query("SELECT DATE_VAL, CLOSE_VAL FROM COMPANIES_PRICE_DATA WHERE COMPANY_ID = $1 ORDER BY DATE_VAL DESC LIMIT 1", companyid)
+	if err != nil {
+		panic(err.Error())
+	}
+	defer records.Close()
+	for records.Next() {
+		errScan := records.Scan(&dailyPriceRecords.DateVal, &dailyPriceRecords.CloseVal)
+		if errScan != nil {
+			fmt.Println(errScan.Error(), "Error scanning record ")
+		}
+	}
+
 	return dailyPriceRecords
 }
 
@@ -163,8 +179,13 @@ func AddUserDB(user User, db *sql.DB) error {
 func AddUserHoldingsDB(userHoldings HoldingsInputJson, db *sql.DB) error {
 	userId := userHoldings.UserID
 	for _, company := range userHoldings.Holdings {
-		_, err := db.Exec("INSERT INTO USER_HOLDINGS(USER_ID, COMPANY_ID, QUANTITY, BUY_DATE) VALUES($1, $2, $3, $4) ",
-			userId, company.Companyid, company.Quantity, company.BuyDate)
+		buyPrice, parseErr := strconv.ParseFloat(company.BuyPrice, 64)
+		if parseErr != nil {
+			return parseErr
+		}
+
+		_, err := db.Exec("INSERT INTO USER_HOLDINGS(USER_ID, COMPANY_ID, QUANTITY, BUY_DATE, BUY_PRICE) VALUES($1, $2, $3, $4, $5) ",
+			userId, company.Companyid, company.Quantity, company.BuyDate, buyPrice)
 		if err != nil {
 			return err
 		}
