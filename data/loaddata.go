@@ -29,8 +29,9 @@ type User struct {
 }
 
 type HoldingsInputJson struct {
-	UserID   string `json:"userId"`
-	Holdings []Holdings
+	UserID     string               `json:"userId"`
+	Holdings   []Holdings           `json:"Holdings"`
+	HoldingsNT []HoldingsNonTracked `json:"HoldingsNonTracked"`
 }
 
 type HoldingsOutputJson struct {
@@ -44,6 +45,14 @@ type Holdings struct {
 	Quantity  string `json:"quantity"`
 	BuyDate   string `json:"buyDate"`
 	BuyPrice  string `json:"buyPrice"`
+}
+
+type HoldingsNonTracked struct {
+	SecurityId   string `json:"securityid"`
+	BuyDate      string `json:"buyDate"`
+	BuyValue     string `json:"buyValue"`
+	CurrentValue string `json:"currentValue"`
+	InterestRate string `json:"interestRate"`
 }
 
 const (
@@ -178,6 +187,7 @@ func AddUserDB(user User, db *sql.DB) error {
 
 func AddUserHoldingsDB(userHoldings HoldingsInputJson, db *sql.DB) error {
 	userId := userHoldings.UserID
+	/* Add Tracked assets */
 	for _, company := range userHoldings.Holdings {
 		buyPrice, parseErr := strconv.ParseFloat(company.BuyPrice, 64)
 		if parseErr != nil {
@@ -186,6 +196,28 @@ func AddUserHoldingsDB(userHoldings HoldingsInputJson, db *sql.DB) error {
 
 		_, err := db.Exec("INSERT INTO USER_HOLDINGS(USER_ID, COMPANY_ID, QUANTITY, BUY_DATE, BUY_PRICE) VALUES($1, $2, $3, $4, $5) ",
 			userId, company.Companyid, company.Quantity, company.BuyDate, buyPrice)
+		if err != nil {
+			return err
+		}
+	}
+
+	/* Add Non Tracked assets */
+	for _, security := range userHoldings.HoldingsNT {
+		buyValue, bvParseErr := strconv.ParseFloat(security.BuyValue, 64)
+		if bvParseErr != nil {
+			return bvParseErr
+		}
+		currentValue, cvParseErr := strconv.ParseFloat(security.CurrentValue, 64)
+		if cvParseErr != nil {
+			return cvParseErr
+		}
+		interestRate, irParseErr := strconv.ParseFloat(security.InterestRate, 64)
+		if irParseErr != nil {
+			return irParseErr
+		}
+
+		_, err := db.Exec("INSERT INTO USER_HOLDINGS_NT(USER_ID, SECURITY_ID, BUY_DATE, BUY_VALUE, CURRENT_VALUE, INTEREST_RATE) VALUES($1, $2, $3, $4, $5, $6) ",
+			userId, security.SecurityId, security.BuyDate, buyValue, currentValue, interestRate)
 		if err != nil {
 			return err
 		}
