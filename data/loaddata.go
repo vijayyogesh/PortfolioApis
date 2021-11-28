@@ -35,9 +35,11 @@ type HoldingsInputJson struct {
 }
 
 type HoldingsOutputJson struct {
-	UserID   string `json:"userId"`
-	Holdings []Holdings
-	Networth string `json:"Networth"`
+	UserID     string               `json:"userId"`
+	Holdings   []Holdings           `json:"Holdings"`
+	HoldingsNT []HoldingsNonTracked `json:"HoldingsNonTracked"`
+	Networth   string               `json:"Networth"`
+	Allocation Allocation           `json:"Allocation"`
 }
 
 type Holdings struct {
@@ -45,6 +47,11 @@ type Holdings struct {
 	Quantity  string `json:"quantity"`
 	BuyDate   string `json:"buyDate"`
 	BuyPrice  string `json:"buyPrice"`
+}
+
+type Allocation struct {
+	Equity string `json:"equity"`
+	Debt   string `json:"debt"`
 }
 
 type HoldingsNonTracked struct {
@@ -245,7 +252,9 @@ func FetchUniqueUsersDB(db *sql.DB) []User {
 
 func GetUserHoldingsDB(userid string, db *sql.DB) (HoldingsOutputJson, error) {
 	var holdingsOutputJson HoldingsOutputJson
+	holdingsOutputJson.UserID = userid
 
+	/* Tracked Data */
 	records, err := db.Query("SELECT HOLDINGS.USER_ID, HOLDINGS.COMPANY_ID, HOLDINGS.QUANTITY, HOLDINGS.BUY_DATE FROM USERS USERS, USER_HOLDINGS HOLDINGS "+
 		"WHERE USERS.USER_ID = HOLDINGS.USER_ID AND USERS.USER_ID = $1", userid)
 	if err != nil {
@@ -263,6 +272,25 @@ func GetUserHoldingsDB(userid string, db *sql.DB) (HoldingsOutputJson, error) {
 		}
 		holdingsOutputJson.Holdings = append(holdingsOutputJson.Holdings, holdings)
 	}
-	holdingsOutputJson.UserID = userid
+
+	/* Non Tracked Data*/
+	recordsNT, errNT := db.Query("SELECT HOLDINGS_NT.USER_ID, HOLDINGS_NT.SECURITY_ID, HOLDINGS_NT.BUY_VALUE, HOLDINGS_NT.BUY_DATE, HOLDINGS_NT.CURRENT_VALUE FROM USERS USERS, USER_HOLDINGS_NT HOLDINGS_NT "+
+		"WHERE USERS.USER_ID = HOLDINGS_NT.USER_ID AND USERS.USER_ID = $1", userid)
+	if errNT != nil {
+		fmt.Println(err.Error(), "Error reading record ")
+		return holdingsOutputJson, err
+	}
+	defer recordsNT.Close()
+
+	for recordsNT.Next() {
+		var holdingsNT HoldingsNonTracked
+		var userid string
+		recordsNT.Scan(&userid, &holdingsNT.SecurityId, &holdingsNT.BuyValue, &holdingsNT.BuyDate, &holdingsNT.CurrentValue)
+		if err != nil {
+			fmt.Println(err.Error(), "Error scanning record ")
+		}
+		holdingsOutputJson.HoldingsNT = append(holdingsOutputJson.HoldingsNT, holdingsNT)
+	}
+
 	return holdingsOutputJson, nil
 }

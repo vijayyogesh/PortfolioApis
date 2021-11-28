@@ -396,12 +396,16 @@ func GetUserHoldings(userInput []byte, db *sql.DB) data.HoldingsOutputJson {
 		}
 		userHoldings = holdings
 	}
-	calculateNW(&userHoldings, db)
+	calculateNetWorthAndAlloc(&userHoldings, db)
+
 	return userHoldings
 }
 
-func calculateNW(userHoldings *data.HoldingsOutputJson, db *sql.DB) {
+func calculateNetWorthAndAlloc(userHoldings *data.HoldingsOutputJson, db *sql.DB) {
 	var NW float64
+	var eqTotal float64
+	var debtTotal float64
+
 	for _, holding := range userHoldings.Holdings {
 		FetchLatestCompaniesCompletePrice(holding.Companyid, db)
 		latestPriceData := dailyPriceCacheLatest[holding.Companyid]
@@ -411,8 +415,24 @@ func calculateNW(userHoldings *data.HoldingsOutputJson, db *sql.DB) {
 		}
 
 		NW = NW + (latestPriceData.CloseVal * qty)
-		fmt.Println(latestPriceData.CloseVal)
+		eqTotal = eqTotal + (latestPriceData.CloseVal * qty)
 	}
+
+	for _, holdingNT := range userHoldings.HoldingsNT {
+		cv, errCV := strconv.ParseFloat(holdingNT.CurrentValue, 64)
+		if errCV != nil {
+			fmt.Println(errCV)
+		}
+		NW = NW + cv
+		debtTotal = debtTotal + cv
+	}
+
+	/* Calculate EQ and Debt % */
+	eqPercent := fmt.Sprintf("%f", eqTotal/NW*100)
+	debtPercent := fmt.Sprintf("%f", debtTotal/NW*100)
+
+	userHoldings.Allocation.Equity = eqPercent
+	userHoldings.Allocation.Debt = debtPercent
 
 	userHoldings.Networth = fmt.Sprintf("%f", NW)
 }
