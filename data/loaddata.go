@@ -62,6 +62,17 @@ type HoldingsNonTracked struct {
 	InterestRate string `json:"interestRate"`
 }
 
+type ModelPortfolio struct {
+	UserID     string       `json:"userId"`
+	Securities []Securities `json:"Securities"`
+}
+
+type Securities struct {
+	Securityid         string `json:"securityid"`
+	ReasonablePrice    string `json:"reasonablePrice"`
+	ExpectedAllocation string `json:"expectedAllocation"`
+}
+
 const (
 	DB_USER     = "postgres"
 	DB_PASSWORD = "phorrj"
@@ -293,4 +304,27 @@ func GetUserHoldingsDB(userid string, db *sql.DB) (HoldingsOutputJson, error) {
 	}
 
 	return holdingsOutputJson, nil
+}
+
+func AddModelPortfolioDB(userHoldings ModelPortfolio, db *sql.DB) error {
+	userId := userHoldings.UserID
+	for _, security := range userHoldings.Securities {
+		reasonablePrice, parseErr := strconv.ParseFloat(security.ReasonablePrice, 64)
+		if parseErr != nil {
+			return parseErr
+		}
+
+		expAlloc, parseErr := strconv.ParseFloat(security.ExpectedAllocation, 64)
+		if parseErr != nil {
+			return parseErr
+		}
+
+		_, err := db.Exec("INSERT INTO USER_MODEL_PF(USER_ID, SECURITY_ID, REASONABLE_PRICE, EXP_ALLOC) VALUES($1, $2, $3, $4) "+
+			" ON CONFLICT(USER_ID, SECURITY_ID) DO UPDATE SET REASONABLE_PRICE = excluded.REASONABLE_PRICE, EXP_ALLOC =  excluded.EXP_ALLOC ",
+			userId, security.Securityid, reasonablePrice, expAlloc)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

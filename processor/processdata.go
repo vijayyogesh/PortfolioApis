@@ -436,3 +436,23 @@ func calculateNetWorthAndAlloc(userHoldings *data.HoldingsOutputJson, db *sql.DB
 
 	userHoldings.Networth = fmt.Sprintf("%f", NW)
 }
+
+/* Add model Pf with allocation and Reasonable price */
+func AddModelPortfolio(userInput []byte, db *sql.DB) string {
+	fmt.Println("In AddModelPortfolio")
+	var modelPf data.ModelPortfolio
+
+	json.Unmarshal(userInput, &modelPf)
+	fmt.Println(modelPf)
+
+	isUserPresent := verifyUserId(modelPf.UserID, db)
+	if isUserPresent {
+		err := data.AddModelPortfolioDB(modelPf, db)
+		if err != nil {
+			fmt.Println(err)
+			return "Error while createing Model Portfolio"
+		}
+		return "Added Model Portfolio successfully"
+	}
+	return "Invalid User"
+}
