@@ -456,3 +456,23 @@ func AddModelPortfolio(userInput []byte, db *sql.DB) string {
 	}
 	return "Invalid User"
 }
+
+/* Fetch Model Pf for given User */
+func GetModelPortfolio(userInput []byte, db *sql.DB) data.ModelPortfolio {
+	var modelPortfolio data.ModelPortfolio
+
+	var user data.User
+	json.Unmarshal(userInput, &user)
+	fmt.Println(user)
+
+	isUserPresent := verifyUserId(user.UserId, db)
+	if isUserPresent {
+		modelPf, err := data.GetModelPortfolioDB(user.UserId, db)
+		if err != nil {
+			fmt.Println(err)
+		}
+		modelPortfolio = modelPf
+	}
+
+	return modelPortfolio
+}

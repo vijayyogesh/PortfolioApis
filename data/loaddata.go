@@ -328,3 +328,28 @@ func AddModelPortfolioDB(userHoldings ModelPortfolio, db *sql.DB) error {
 	}
 	return nil
 }
+
+func GetModelPortfolioDB(userid string, db *sql.DB) (ModelPortfolio, error) {
+	var modelPf ModelPortfolio
+	modelPf.UserID = userid
+
+	records, err := db.Query("SELECT SECURITY_ID, REASONABLE_PRICE, EXP_ALLOC FROM USER_MODEL_PF  "+
+		"WHERE USER_ID = $1", userid)
+	if err != nil {
+		fmt.Println(err.Error(), "Error reading record ")
+		return modelPf, err
+	}
+	defer records.Close()
+
+	for records.Next() {
+		var security Securities
+		err := records.Scan(&security.Securityid, &security.ReasonablePrice, &security.ExpectedAllocation)
+		if err != nil {
+			fmt.Println(err.Error(), "Error scanning record ")
+			return modelPf, err
+		}
+		modelPf.Securities = append(modelPf.Securities, security)
+	}
+
+	return modelPf, nil
+}

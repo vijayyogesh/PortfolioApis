@@ -40,6 +40,10 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reqBody, _ := ioutil.ReadAll(r.Body)
 		msg := processor.AddModelPortfolio(reqBody, appC.db)
 		json.NewEncoder(w).Encode(msg)
+	} else if (r.URL.Path == "/PortfolioApis/getmodelportfolio") && (r.Method == http.MethodPost) {
+		reqBody, _ := ioutil.ReadAll(r.Body)
+		msg := processor.GetModelPortfolio(reqBody, appC.db)
+		json.NewEncoder(w).Encode(msg)
 	}
 
 	fmt.Println("Exiting Serve HTTP")
