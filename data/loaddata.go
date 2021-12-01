@@ -24,8 +24,9 @@ type CompaniesPriceData struct {
 }
 
 type User struct {
-	UserId    string
-	StartDate time.Time
+	UserId       string
+	StartDate    time.Time
+	TargetAmount float64
 }
 
 type HoldingsInputJson struct {

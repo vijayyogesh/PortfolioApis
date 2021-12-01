@@ -476,3 +476,16 @@ func GetModelPortfolio(userInput []byte, db *sql.DB) data.ModelPortfolio {
 
 	return modelPortfolio
 }
+
+func GetPortfolioModelSync(userInput []byte, db *sql.DB) {
+	/* Get Target Amount */
+
+	/* Get Current Holdings */
+
+	/* Get Model Pf */
+
+	/* For each Model Pf holding
+	1) Check if exists in actual Pf
+	2) Check if current price is below reasonable price.
+	3) Calculate amount to be invested/sold */
+}
