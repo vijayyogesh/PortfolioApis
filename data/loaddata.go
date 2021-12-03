@@ -354,3 +354,17 @@ func GetModelPortfolioDB(userid string, db *sql.DB) (ModelPortfolio, error) {
 
 	return modelPf, nil
 }
+
+func GetTargetAmountDB(userid string, db *sql.DB) float64 {
+	var targetAmount float64
+	records, err := db.Query("SELECT TARGET_AMOUNT FROM USERS WHERE USER_ID = $1 ", userid)
+	if err != nil {
+		fmt.Println(err.Error(), "Error getting targeted Amount from DB ")
+		return targetAmount
+	}
+	defer records.Close()
+	for records.Next() {
+		records.Scan(&targetAmount)
+	}
+	return targetAmount
+}

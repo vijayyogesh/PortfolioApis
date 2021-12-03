@@ -477,15 +477,41 @@ func GetModelPortfolio(userInput []byte, db *sql.DB) data.ModelPortfolio {
 	return modelPortfolio
 }
 
-func GetPortfolioModelSync(userInput []byte, db *sql.DB) {
+func GetPortfolioModelSync(userInput []byte, db *sql.DB) string {
+	var user data.User
+	json.Unmarshal(userInput, &user)
+
 	/* Get Target Amount */
+	targetAmount := data.GetTargetAmountDB(user.UserId, db)
+	fmt.Println(targetAmount)
 
 	/* Get Current Holdings */
+	holdingsOutputJson := GetUserHoldings(userInput, db)
+	fmt.Println(holdingsOutputJson)
 
 	/* Get Model Pf */
+	modelPf := GetModelPortfolio(userInput, db)
+	fmt.Println(modelPf)
 
 	/* For each Model Pf holding
 	1) Check if exists in actual Pf
 	2) Check if current price is below reasonable price.
 	3) Calculate amount to be invested/sold */
+	for _, security := range modelPf.Securities {
+		fmt.Println("Priniting Tracked Holdings")
+		fmt.Println(security)
+		for _, holdings := range holdingsOutputJson.Holdings {
+			if holdings.Companyid == security.Securityid {
+				fmt.Println("Security exists in Pf")
+			} else {
+				allocation, parseErr := strconv.ParseFloat(security.ExpectedAllocation, 64)
+				if parseErr != nil {
+					fmt.Println("Error while parsing allocation ")
+				}
+				amountToBeAllocated := allocation / 100.0 * targetAmount
+				fmt.Println("Security - " + security.Securityid + "Target Amount - " + fmt.Sprintf("%f", amountToBeAllocated))
+			}
+		}
+	}
+	return "Success"
 }
