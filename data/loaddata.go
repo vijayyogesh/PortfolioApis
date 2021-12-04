@@ -74,6 +74,15 @@ type Securities struct {
 	ExpectedAllocation string `json:"expectedAllocation"`
 }
 
+type SyncedPortfolio struct {
+	AdjustedHoldings []AdjustedHolding
+}
+
+type AdjustedHolding struct {
+	Securityid     string `json:"securityid"`
+	AdjustedAmount string `json:"adjustedAmount"`
+}
+
 const (
 	DB_USER     = "postgres"
 	DB_PASSWORD = "phorrj"
@@ -267,7 +276,7 @@ func GetUserHoldingsDB(userid string, db *sql.DB) (HoldingsOutputJson, error) {
 	holdingsOutputJson.UserID = userid
 
 	/* Tracked Data */
-	records, err := db.Query("SELECT HOLDINGS.USER_ID, HOLDINGS.COMPANY_ID, HOLDINGS.QUANTITY, HOLDINGS.BUY_DATE FROM USERS USERS, USER_HOLDINGS HOLDINGS "+
+	records, err := db.Query("SELECT HOLDINGS.USER_ID, HOLDINGS.COMPANY_ID, HOLDINGS.QUANTITY, HOLDINGS.BUY_DATE, HOLDINGS.BUY_PRICE FROM USERS USERS, USER_HOLDINGS HOLDINGS "+
 		"WHERE USERS.USER_ID = HOLDINGS.USER_ID AND USERS.USER_ID = $1", userid)
 	if err != nil {
 		fmt.Println(err.Error(), "Error reading record ")
@@ -278,7 +287,7 @@ func GetUserHoldingsDB(userid string, db *sql.DB) (HoldingsOutputJson, error) {
 	for records.Next() {
 		var holdings Holdings
 		var userid string
-		records.Scan(&userid, &holdings.Companyid, &holdings.Quantity, &holdings.BuyDate)
+		records.Scan(&userid, &holdings.Companyid, &holdings.Quantity, &holdings.BuyDate, &holdings.BuyPrice)
 		if err != nil {
 			fmt.Println(err.Error(), "Error scanning record ")
 		}

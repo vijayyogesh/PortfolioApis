@@ -477,7 +477,9 @@ func GetModelPortfolio(userInput []byte, db *sql.DB) data.ModelPortfolio {
 	return modelPortfolio
 }
 
-func GetPortfolioModelSync(userInput []byte, db *sql.DB) string {
+func GetPortfolioModelSync(userInput []byte, db *sql.DB) data.SyncedPortfolio {
+	var syncedPf data.SyncedPortfolio
+
 	var user data.User
 	json.Unmarshal(userInput, &user)
 
@@ -494,24 +496,50 @@ func GetPortfolioModelSync(userInput []byte, db *sql.DB) string {
 	fmt.Println(modelPf)
 
 	/* For each Model Pf holding
-	1) Check if exists in actual Pf
-	2) Check if current price is below reasonable price.
-	3) Calculate amount to be invested/sold */
-	for _, security := range modelPf.Securities {
-		fmt.Println("Priniting Tracked Holdings")
-		fmt.Println(security)
-		for _, holdings := range holdingsOutputJson.Holdings {
-			if holdings.Companyid == security.Securityid {
-				fmt.Println("Security exists in Pf")
-			} else {
-				allocation, parseErr := strconv.ParseFloat(security.ExpectedAllocation, 64)
-				if parseErr != nil {
-					fmt.Println("Error while parsing allocation ")
-				}
-				amountToBeAllocated := allocation / 100.0 * targetAmount
-				fmt.Println("Security - " + security.Securityid + "Target Amount - " + fmt.Sprintf("%f", amountToBeAllocated))
-			}
-		}
+	1) Check if exists in actual Pf (Tracked Holdings)
+	2) Calculate amount to be invested/sold
+	3) Check if current price is below reasonable price. */
+
+	/* Form Map to hold company id - key, transactions as Value*/
+	holdingsMap := make(map[string][]data.Holdings)
+	for _, holding := range holdingsOutputJson.Holdings {
+		companyid := holding.Companyid
+		holdingsMap[companyid] = append(holdingsMap[companyid], holding)
 	}
-	return "Success"
+
+	for _, security := range modelPf.Securities {
+
+		/* For each Model security, Calculate Amount to Be allocated based on expected allocation & target Amount */
+		var amountToBeAllocated float64
+		allocation, parseErr := strconv.ParseFloat(security.ExpectedAllocation, 64)
+		if parseErr != nil {
+			fmt.Println("Error while parsing allocation ")
+		}
+		amountToBeAllocated = allocation / 100.0 * targetAmount
+
+		/* If already present, check if over/under invested */
+		holdings, ok := holdingsMap[security.Securityid]
+		if ok {
+			cumulativeAmount := CalculateCumulativeInvestedAmount(holdings)
+			amountToBeAllocated = (allocation / 100.0 * targetAmount) - cumulativeAmount
+		}
+
+		/* Form Structure stating how much to invest/prune in each model security */
+		var adjustedHolding data.AdjustedHolding
+		adjustedHolding.Securityid = security.Securityid
+		adjustedHolding.AdjustedAmount = fmt.Sprintf("%f", amountToBeAllocated)
+		syncedPf.AdjustedHoldings = append(syncedPf.AdjustedHoldings, adjustedHolding)
+	}
+
+	return syncedPf
+}
+
+func CalculateCumulativeInvestedAmount(holdings []data.Holdings) float64 {
+	var cumulativeAmount float64
+	for _, holding := range holdings {
+		buyPrice, _ := strconv.ParseFloat(holding.BuyPrice, 64)
+		qty, _ := strconv.ParseFloat(holding.Quantity, 64)
+		cumulativeAmount = cumulativeAmount + (buyPrice * qty)
+	}
+	return cumulativeAmount
 }
