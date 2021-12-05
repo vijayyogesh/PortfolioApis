@@ -528,6 +528,17 @@ func GetPortfolioModelSync(userInput []byte, db *sql.DB) data.SyncedPortfolio {
 		var adjustedHolding data.AdjustedHolding
 		adjustedHolding.Securityid = security.Securityid
 		adjustedHolding.AdjustedAmount = fmt.Sprintf("%f", amountToBeAllocated)
+
+		/* Check if current price is below reasonable price */
+		FetchLatestCompaniesCompletePrice(security.Securityid, db)
+		latestPriceData := dailyPriceCacheLatest[security.Securityid]
+		secReasonablePrice, _ := strconv.ParseFloat(security.ReasonablePrice, 64)
+		if latestPriceData.CloseVal < secReasonablePrice {
+			adjustedHolding.BelowReasonablePrice = "Y"
+		} else {
+			adjustedHolding.BelowReasonablePrice = "N"
+		}
+
 		syncedPf.AdjustedHoldings = append(syncedPf.AdjustedHoldings, adjustedHolding)
 	}
 
