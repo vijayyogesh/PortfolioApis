@@ -535,6 +535,8 @@ func GetPortfolioModelSync(userInput []byte, db *sql.DB) data.SyncedPortfolio {
 		secReasonablePrice, _ := strconv.ParseFloat(security.ReasonablePrice, 64)
 		if latestPriceData.CloseVal < secReasonablePrice {
 			adjustedHolding.BelowReasonablePrice = "Y"
+			percentBRP := (secReasonablePrice - latestPriceData.CloseVal) / secReasonablePrice * 100.0
+			adjustedHolding.PercentBelowReasonablePrice = fmt.Sprintf("%f", percentBRP)
 		} else {
 			adjustedHolding.BelowReasonablePrice = "N"
 		}

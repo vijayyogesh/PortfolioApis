@@ -79,9 +79,10 @@ type SyncedPortfolio struct {
 }
 
 type AdjustedHolding struct {
-	Securityid           string `json:"securityid"`
-	AdjustedAmount       string `json:"adjustedAmount"`
-	BelowReasonablePrice string `json:"belowReasonablePrice"`
+	Securityid                  string `json:"securityid"`
+	AdjustedAmount              string `json:"adjustedAmount"`
+	BelowReasonablePrice        string `json:"belowReasonablePrice"`
+	PercentBelowReasonablePrice string `json:"percentBelowReasonablePrice"`
 }
 
 const (
