@@ -26,6 +26,8 @@ func main() {
 	/*http.Handle("/PortfolioApis/refresh", *appC)
 	http.ListenAndServe(":3000", nil)*/
 
+	http.Handle("/PortfolioApis/updateprices", *appC)
+	http.Handle("/PortfolioApis/updatemasterlist", *appC)
 	http.Handle("/PortfolioApis/adduser", *appC)
 	http.Handle("/PortfolioApis/adduserholdings", *appC)
 	http.Handle("/PortfolioApis/getuserholdings", *appC)

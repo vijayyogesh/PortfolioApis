@@ -24,6 +24,14 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("In Serve HTTP")
 	//processor.FetchAndUpdatePrices(appC.db)
 
+	if (r.URL.Path == "/PortfolioApis/updateprices") && (r.Method == http.MethodPost) {
+		msg := processor.FetchAndUpdatePrices(appC.db)
+		json.NewEncoder(w).Encode(msg)
+	}
+	if (r.URL.Path == "/PortfolioApis/updatemasterlist") && (r.Method == http.MethodPost) {
+		msg := processor.FetchAndUpdateCompaniesMasterList(appC.db)
+		json.NewEncoder(w).Encode(msg)
+	}
 	if (r.URL.Path == "/PortfolioApis/adduser") && (r.Method == http.MethodPost) {
 		reqBody, _ := ioutil.ReadAll(r.Body)
 		msg := processor.AddUser(reqBody, appC.db)

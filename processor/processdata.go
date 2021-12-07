@@ -28,7 +28,7 @@ var usersCache map[string]data.User = make(map[string]data.User)
 1) Download data file based on TS
 2) Load into DB
 */
-func FetchAndUpdatePrices(db *sql.DB) {
+func FetchAndUpdatePrices(db *sql.DB) string {
 	//Fetch Unique Company Details
 	companiesData := FetchCompanies(db)
 
@@ -37,6 +37,8 @@ func FetchAndUpdatePrices(db *sql.DB) {
 
 	//Read Data From File & Write into DB asynchronously
 	LoadPriceData(db)
+
+	return "Prices updated successfully"
 }
 
 /* Fetch Unique Company Details */
@@ -230,20 +232,19 @@ func FetchLatestCompaniesCompletePrice(companyid string, db *sql.DB) {
 	fmt.Println(dailyPriceRecordsLatest)
 }
 
-func FetchAndUpdateCompaniesMasterList(db *sql.DB) {
-
-	//Download data file in parallel
+func FetchAndUpdateCompaniesMasterList(db *sql.DB) string {
 	DownloadCompaniesMaster()
 
-	//Read Data From File & Write into DB asynchronously
 	LoadCompaniesMaster(db)
+
+	return "Master companies list loaded successfully"
 }
 
 /* Download data file from online */
 func DownloadCompaniesMaster() error {
 	fmt.Println("Loading Companies Master List ")
-	filePath := "C:\\Users\\Ajay\\Downloads\\" + "TOP200" + ".csv"
-	url := "https://www1.nseindia.com/content/indices/ind_nifty200list.csv"
+	filePath := "C:\\Users\\Ajay\\Downloads\\" + "TOP500" + ".csv"
+	url := "https://www1.nseindia.com/content/indices/ind_nifty500list.csv"
 
 	out, err := os.Create(filePath)
 	if err != nil {
@@ -275,7 +276,7 @@ func DownloadCompaniesMaster() error {
 
 /* Read Companies Master Data From File & Write into DB  */
 func LoadCompaniesMaster(db *sql.DB) {
-	companiesMasterList, err := ReadCompaniesMasterCsv("C:\\Users\\Ajay\\Downloads\\" + "TOP200" + ".csv")
+	companiesMasterList, err := ReadCompaniesMasterCsv("C:\\Users\\Ajay\\Downloads\\" + "TOP500" + ".csv")
 	if err == nil {
 		LoadCompaniesMasterList(db, companiesMasterList)
 	}
