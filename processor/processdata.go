@@ -57,7 +57,7 @@ func FetchCompanies(db *sql.DB) []data.Company {
 
 /* Call DownloadDataFile from go routine */
 func DownloadDataAsync(companiesData []data.Company) {
-	var wg sync.WaitGroup
+	/*var wg sync.WaitGroup
 	for _, company := range companiesData {
 		wg.Add(1)
 		go func(companyId string, fromTime time.Time) {
@@ -70,6 +70,17 @@ func DownloadDataAsync(companiesData []data.Company) {
 		}(company.CompanyId, company.LoadDate)
 	}
 	wg.Wait()
+	*/
+
+	for _, company := range companiesData {
+		companyId := company.CompanyId
+		fromTime := company.LoadDate
+		if fromTime.IsZero() {
+			fromTime = time.Date(1996, 1, 1, 0, 0, 0, 0, time.UTC)
+		}
+		time.Sleep(2 * time.Second)
+		DownloadDataFile(companyId, fromTime)
+	}
 }
 
 /* Download data file from online */
@@ -92,7 +103,7 @@ func DownloadDataFile(companyId string, fromTime time.Time) error {
 	//fmt.Println("Start Time " + startTime + " End Time " + endTime)
 	url = fmt.Sprintf(url, startTime, endTime)
 	//fmt.Println("filePath " + filePath)
-	//fmt.Println("url " + url)
+	fmt.Println("url " + url)
 
 	/* Get the data from Yahoo Finance */
 	resp, err := http.Get(url)
