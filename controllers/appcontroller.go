@@ -5,18 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 
 	"github.com/vijayyogesh/PortfolioApis/processor"
 )
 
 type AppController struct {
-	db *sql.DB
+	db        *sql.DB
+	AppLogger *log.Logger
 }
 
-func NewAppController(dbRef *sql.DB) *AppController {
+func NewAppController(dbRef *sql.DB, logger *log.Logger) *AppController {
 	return &AppController{
-		db: dbRef,
+		db:        dbRef,
+		AppLogger: logger,
 	}
 }
 

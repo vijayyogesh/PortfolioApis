@@ -3,7 +3,9 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/vijayyogesh/PortfolioApis/controllers"
 	"github.com/vijayyogesh/PortfolioApis/data"
@@ -13,6 +15,7 @@ import (
 
 var db *sql.DB
 var appC *controllers.AppController
+var Logger *log.Logger
 
 func main() {
 	/*fmt.Println("In main - start tme: " + time.Now().String())
@@ -41,5 +44,17 @@ func main() {
 func init() {
 	fmt.Println("In init")
 	db = data.SetupDB()
-	appC = controllers.NewAppController(db)
+
+	// If the file doesn't exist, create it or append to the file
+	file, err := os.OpenFile("PortfolioApiLog.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		panic(err)
+	}
+	Logger = log.New(file, "PortfolioApi : ", log.Ldate|log.Ltime|log.Lshortfile)
+	Logger.Println("Hello")
+
+	appC = controllers.NewAppController(db, Logger)
+
+	appC.AppLogger.SetOutput(file)
+	appC.AppLogger.Println("Hello")
 }

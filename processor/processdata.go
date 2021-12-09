@@ -144,7 +144,7 @@ func LoadPriceData(db *sql.DB) {
 			var err error
 			companiesdata, err, recordsCount := ReadDailyPriceCsv(filePath, companyid)
 			if err != nil {
-				panic(err)
+				fmt.Println(err.Error(), "Error returned from ReadDailyPriceCsv ")
 			}
 			fmt.Println(companyid, " - ", recordsCount)
 			atomic.AddInt64(&totRecordsCount, int64(recordsCount))
