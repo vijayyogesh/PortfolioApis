@@ -568,3 +568,7 @@ func CalculateCumulativeInvestedAmount(holdings []data.Holdings) float64 {
 	}
 	return cumulativeAmount
 }
+
+func TestCron() {
+	fmt.Println("In Test Cron")
+}

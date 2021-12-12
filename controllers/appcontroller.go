@@ -3,7 +3,6 @@ package controllers
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -24,8 +23,7 @@ func NewAppController(dbRef *sql.DB, logger *log.Logger) *AppController {
 }
 
 func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("In Serve HTTP")
-	//processor.FetchAndUpdatePrices(appC.db)
+	appC.AppLogger.Println("In Serve HTTP")
 
 	if (r.URL.Path == "/PortfolioApis/updateprices") && (r.Method == http.MethodPost) {
 		msg := processor.FetchAndUpdatePrices(appC.db)
@@ -61,5 +59,5 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(msg)
 	}
 
-	fmt.Println("Exiting Serve HTTP")
+	appC.AppLogger.Println("Exiting Serve HTTP")
 }

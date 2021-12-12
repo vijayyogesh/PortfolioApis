@@ -2,13 +2,14 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/robfig/cron/v3"
 	"github.com/vijayyogesh/PortfolioApis/controllers"
 	"github.com/vijayyogesh/PortfolioApis/data"
+	"github.com/vijayyogesh/PortfolioApis/processor"
 
 	_ "github.com/lib/pq"
 )
@@ -42,7 +43,6 @@ func main() {
 }
 
 func init() {
-	fmt.Println("In init")
 	db = data.SetupDB()
 
 	// If the file doesn't exist, create it or append to the file
@@ -51,10 +51,17 @@ func init() {
 		panic(err)
 	}
 	Logger = log.New(file, "PortfolioApi : ", log.Ldate|log.Ltime|log.Lshortfile)
-	Logger.Println("Hello")
 
 	appC = controllers.NewAppController(db, Logger)
-
 	appC.AppLogger.SetOutput(file)
-	appC.AppLogger.Println("Hello")
+	startCronJobs()
+	appC.AppLogger.Println("Completed init")
+}
+
+func startCronJobs() {
+	appC.AppLogger.Println("Starting Cron Jobs")
+	cronJob := cron.New()
+	cronJob.AddFunc("*/1 * * * *", processor.TestCron)
+	cronJob.Start()
+	//fmt.Println(c.Entries())
 }
