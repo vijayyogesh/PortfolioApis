@@ -61,7 +61,9 @@ func init() {
 func startCronJobs() {
 	appC.AppLogger.Println("Starting Cron Jobs")
 	cronJob := cron.New()
-	cronJob.AddFunc("*/1 * * * *", processor.TestCron)
+	cronJob.AddFunc("@hourly", func() {
+		processor.FetchAndUpdatePrices(db)
+	})
 	cronJob.Start()
-	//fmt.Println(c.Entries())
+	appC.AppLogger.Println("Completed Cron Jobs")
 }

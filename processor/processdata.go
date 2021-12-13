@@ -142,21 +142,25 @@ func LoadPriceData(db *sql.DB) {
 		go func(companyid string) {
 			defer wg.Done()
 			var err error
-			companiesdata, err, recordsCount := ReadDailyPriceCsv(filePath, companyid)
+			companiesdata, recordsCount, err := ReadDailyPriceCsv(filePath, companyid)
 			if err != nil {
 				fmt.Println(err.Error(), "Error returned from ReadDailyPriceCsv ")
 			}
 			fmt.Println(companyid, " - ", recordsCount)
-			atomic.AddInt64(&totRecordsCount, int64(recordsCount))
-			data.LoadPriceDataDB(companiesdata, db)
-			data.UpdateLoadDate(db, companyid, time.Now())
+			if recordsCount != 0 {
+				atomic.AddInt64(&totRecordsCount, int64(recordsCount))
+				data.LoadPriceDataDB(companiesdata, db)
+				data.UpdateLoadDate(db, companyid, time.Now())
+			} else {
+				fmt.Println("Skipping DB Insert as file record count is zero for - " + companyid)
+			}
 		}(company.CompanyId)
 	}
 	wg.Wait()
 	fmt.Println(totRecordsCount)
 }
 
-func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPriceData, error, int) {
+func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPriceData, int, error) {
 	var companiesdata []data.CompaniesPriceData
 
 	/* Open file */
@@ -164,7 +168,7 @@ func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPrice
 	/* Return if error */
 	if err != nil {
 		fmt.Println(err.Error(), "Error while opening file ")
-		return companiesdata, fmt.Errorf("error while opening file %s ", filePath), 0
+		return companiesdata, 0, fmt.Errorf("error while opening file %s ", filePath)
 	}
 	fmt.Println(file.Name())
 
@@ -174,7 +178,7 @@ func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPrice
 	/* Return if error */
 	if err != nil {
 		fmt.Println(err.Error(), "Error while reading csv ")
-		return companiesdata, fmt.Errorf("error while reading csv %s ", filePath), 0
+		return companiesdata, 0, fmt.Errorf("error while reading csv %s ", filePath)
 	}
 	/* Close resources */
 	file.Close()
@@ -204,7 +208,7 @@ func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPrice
 
 	fmt.Println("Name - " + companyid)
 	//fmt.Println(len(companiesdata))
-	return companiesdata, nil, len(companiesdata)
+	return companiesdata, len(companiesdata), nil
 
 }
 
