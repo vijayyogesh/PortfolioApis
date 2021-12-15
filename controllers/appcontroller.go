@@ -3,10 +3,13 @@ package controllers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/vijayyogesh/PortfolioApis/processor"
 )
 
@@ -22,9 +25,63 @@ func NewAppController(dbRef *sql.DB, logger *log.Logger) *AppController {
 	}
 }
 
+var mySigningKey = []byte("UG9ydGZvbGlvQXBpLUtleSM=")
+
+func GetJWT() (string, error) {
+	token := jwt.New(jwt.SigningMethodHS256)
+
+	claims := token.Claims.(jwt.MapClaims)
+
+	claims["authorized"] = true
+	claims["client"] = "testuser"
+	claims["aud"] = "ApiUsers"
+	claims["iss"] = "PortfolioApisApp"
+	claims["exp"] = time.Now().Add(time.Minute * 10).Unix()
+
+	tokenString, err := token.SignedString(mySigningKey)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
+func AuthenticateToken(r *http.Request) {
+	if r.Header["Token"] != nil {
+		token, err := jwt.Parse(r.Header["Token"][0], func(token *jwt.Token) (interface{}, error) {
+			return mySigningKey, nil
+		})
+		if err != nil {
+			fmt.Println("Error while parsing Token")
+			fmt.Println(err)
+		}
+
+		if token.Valid {
+			fmt.Println("Token Authenticated")
+		} else {
+			fmt.Println("Invalid Token")
+		}
+	}
+
+}
+
 func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	appC.AppLogger.Println("In Serve HTTP")
 
+	if (r.URL.Path == "/PortfolioApis/login") && (r.Method == http.MethodPost) {
+		msg, _ := GetJWT()
+		json.NewEncoder(w).Encode(msg)
+	} else {
+		AuthenticateToken(r)
+		ProcessAppRequests(w, r, appC)
+	}
+
+	appC.AppLogger.Println("Exiting Serve HTTP")
+}
+
+func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppController) {
 	if (r.URL.Path == "/PortfolioApis/updateprices") && (r.Method == http.MethodPost) {
 		msg := processor.FetchAndUpdatePrices(appC.db)
 		json.NewEncoder(w).Encode(msg)
@@ -58,6 +115,4 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		msg := processor.GetPortfolioModelSync(reqBody, appC.db)
 		json.NewEncoder(w).Encode(msg)
 	}
-
-	appC.AppLogger.Println("Exiting Serve HTTP")
 }

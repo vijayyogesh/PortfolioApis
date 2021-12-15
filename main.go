@@ -2,18 +2,15 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/robfig/cron/v3"
 	"github.com/vijayyogesh/PortfolioApis/controllers"
 	"github.com/vijayyogesh/PortfolioApis/data"
 	"github.com/vijayyogesh/PortfolioApis/processor"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	_ "github.com/lib/pq"
 )
 
@@ -33,6 +30,7 @@ func main() {
 	/*http.Handle("/PortfolioApis/refresh", *appC)
 	http.ListenAndServe(":3000", nil)*/
 
+	http.Handle("/PortfolioApis/login", *appC)
 	http.Handle("/PortfolioApis/updateprices", *appC)
 	http.Handle("/PortfolioApis/updatemasterlist", *appC)
 	http.Handle("/PortfolioApis/adduser", *appC)
@@ -58,8 +56,6 @@ func init() {
 	appC = controllers.NewAppController(db, Logger)
 	appC.AppLogger.SetOutput(file)
 	//startCronJobs()
-	tokenString, _ := GetJWT()
-	fmt.Println(tokenString)
 	appC.AppLogger.Println("Completed init")
 }
 
@@ -71,27 +67,4 @@ func startCronJobs() {
 	})
 	cronJob.Start()
 	appC.AppLogger.Println("Completed Cron Jobs")
-}
-
-var mySigningKey = []byte(os.Getenv("SECRET_KEY"))
-
-func GetJWT() (string, error) {
-	token := jwt.New(jwt.SigningMethodHS256)
-
-	claims := token.Claims.(jwt.MapClaims)
-
-	claims["authorized"] = true
-	claims["client"] = "testuser"
-	claims["aud"] = "billing.jwtgo.io"
-	claims["iss"] = "jwtgo.io"
-	claims["exp"] = time.Now().Add(time.Minute * 1).Unix()
-
-	tokenString, err := token.SignedString(mySigningKey)
-
-	if err != nil {
-		fmt.Errorf("Something Went Wrong: %s", err.Error())
-		return "", err
-	}
-
-	return tokenString, nil
 }
