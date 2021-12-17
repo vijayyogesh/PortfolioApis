@@ -48,7 +48,7 @@ func GetJWT() (string, error) {
 	return tokenString, nil
 }
 
-func AuthenticateToken(r *http.Request) {
+func AuthenticateToken(r *http.Request) bool {
 	if r.Header["Token"] != nil {
 		token, err := jwt.Parse(r.Header["Token"][0], func(token *jwt.Token) (interface{}, error) {
 			return mySigningKey, nil
@@ -60,11 +60,14 @@ func AuthenticateToken(r *http.Request) {
 
 		if token.Valid {
 			fmt.Println("Token Authenticated")
+			return true
 		} else {
 			fmt.Println("Invalid Token")
+			return false
 		}
 	}
-
+	fmt.Println("Token Not Found")
+	return false
 }
 
 func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -74,8 +77,11 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		msg, _ := GetJWT()
 		json.NewEncoder(w).Encode(msg)
 	} else {
-		AuthenticateToken(r)
-		ProcessAppRequests(w, r, appC)
+		if AuthenticateToken(r) {
+			ProcessAppRequests(w, r, appC)
+		} else {
+			json.NewEncoder(w).Encode("Unauthorized!!")
+		}
 	}
 
 	appC.AppLogger.Println("Exiting Serve HTTP")
