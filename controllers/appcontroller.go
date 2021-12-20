@@ -36,7 +36,7 @@ func GetJWT() (string, error) {
 	claims["client"] = "testuser"
 	claims["aud"] = "ApiUsers"
 	claims["iss"] = "PortfolioApisApp"
-	claims["exp"] = time.Now().Add(time.Minute * 10).Unix()
+	claims["exp"] = time.Now().Add(time.Minute * 60).Unix()
 
 	tokenString, err := token.SignedString(mySigningKey)
 
@@ -97,7 +97,10 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 		json.NewEncoder(w).Encode(msg)
 	}
 	if (r.URL.Path == "/PortfolioApis/adduser") && (r.Method == http.MethodPost) {
-		reqBody, _ := ioutil.ReadAll(r.Body)
+		reqBody, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			fmt.Println(err)
+		}
 		msg := processor.AddUser(reqBody, appC.db)
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == "/PortfolioApis/adduserholdings") && (r.Method == http.MethodPost) {

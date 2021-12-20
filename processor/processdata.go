@@ -343,7 +343,6 @@ func ReadCompaniesMasterCsv(filePath string) ([]data.Company, error) {
 
 /* User Profiles */
 func AddUser(userInput []byte, db *sql.DB) string {
-	fmt.Println("In Add User")
 	var user data.User
 
 	json.Unmarshal(userInput, &user)

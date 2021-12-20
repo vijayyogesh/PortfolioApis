@@ -26,7 +26,7 @@ type CompaniesPriceData struct {
 type User struct {
 	UserId       string
 	StartDate    time.Time
-	TargetAmount float64
+	TargetAmount float64 `json:",string"`
 }
 
 type HoldingsInputJson struct {
@@ -208,7 +208,7 @@ func LoadCompaniesMasterListDB(companiesMasterList []Company, db *sql.DB) {
 }
 
 func AddUserDB(user User, db *sql.DB) error {
-	_, err := db.Exec("INSERT INTO USERS(USER_ID, START_DATE) VALUES($1, $2) ", user.UserId, user.StartDate)
+	_, err := db.Exec("INSERT INTO USERS(USER_ID, START_DATE, TARGET_AMOUNT) VALUES($1, $2, $3) ", user.UserId, user.StartDate, user.TargetAmount)
 	if err != nil {
 		return err
 	}
