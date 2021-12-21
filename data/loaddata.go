@@ -195,9 +195,9 @@ func LoadCompaniesMasterListDB(companiesMasterList []Company, db *sql.DB) {
 
 	/* Loop and Insert Records */
 	for k, v := range companiesMasterList {
-		_, err := db.Exec("INSERT INTO COMPANIES(COMPANY_ID, COMPANY_NAME) VALUES($1, $2) "+
+		_, err := db.Exec("INSERT INTO COMPANIES(COMPANY_ID, COMPANY_NAME, LOAD_DATE) VALUES($1, $2, $3) "+
 			" ON CONFLICT(COMPANY_ID) DO NOTHING ",
-			v.CompanyId, v.CompanyName)
+			v.CompanyId, v.CompanyName, v.LoadDate)
 
 		/* Ignoring data errors for now */
 		if err != nil {

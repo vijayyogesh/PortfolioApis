@@ -86,7 +86,7 @@ func DownloadDataAsync(companiesData []data.Company) {
 /* Download data file from online */
 func DownloadDataFile(companyId string, fromTime time.Time) error {
 	//fmt.Println("Loading file for company " + companyId)
-	filePath := "C:\\Users\\Ajay\\Downloads\\" + companyId + ".NS.csv"
+	filePath := "C:\\Users\\vijay\\root\\development\\data\\" + companyId + ".NS.csv"
 	url := "https://query1.finance.yahoo.com/v7/finance/download/" + companyId +
 		".NS?period1=%s&period2=%s&interval=1d&events=history&includeAdjustedClose=true"
 
@@ -136,7 +136,7 @@ func LoadPriceData(db *sql.DB) {
 
 	for _, company := range companies {
 		wg.Add(1)
-		filePath := "C:\\Users\\Ajay\\Downloads\\" + company.CompanyId + ".NS.csv"
+		filePath := "C:\\Users\\vijay\\root\\development\\data\\" + company.CompanyId + ".NS.csv"
 		fmt.Println(filePath)
 
 		go func(companyid string) {
@@ -258,7 +258,7 @@ func FetchAndUpdateCompaniesMasterList(db *sql.DB) string {
 /* Download data file from online */
 func DownloadCompaniesMaster() error {
 	fmt.Println("Loading Companies Master List ")
-	filePath := "C:\\Users\\Ajay\\Downloads\\" + "TOP500" + ".csv"
+	filePath := "C:\\Users\\vijay\\root\\development\\data\\" + "TOP500" + ".csv"
 	url := "https://www1.nseindia.com/content/indices/ind_nifty500list.csv"
 
 	out, err := os.Create(filePath)
@@ -291,7 +291,7 @@ func DownloadCompaniesMaster() error {
 
 /* Read Companies Master Data From File & Write into DB  */
 func LoadCompaniesMaster(db *sql.DB) {
-	companiesMasterList, err := ReadCompaniesMasterCsv("C:\\Users\\Ajay\\Downloads\\" + "TOP500" + ".csv")
+	companiesMasterList, err := ReadCompaniesMasterCsv("C:\\Users\\vijay\\root\\development\\data\\" + "TOP500" + ".csv")
 	if err == nil {
 		LoadCompaniesMasterList(db, companiesMasterList)
 	}
@@ -331,7 +331,7 @@ func ReadCompaniesMasterCsv(filePath string) ([]data.Company, error) {
 		if k != 0 {
 			companyid := v[len(v)-3]
 			companyname := v[len(v)-5]
-			companiesMasterList = append(companiesMasterList, data.Company{CompanyId: companyid, CompanyName: companyname})
+			companiesMasterList = append(companiesMasterList, data.Company{CompanyId: companyid, CompanyName: companyname, LoadDate: time.Date(1996, 1, 1, 0, 0, 0, 0, time.UTC)})
 		}
 	}
 
@@ -574,4 +574,8 @@ func CalculateCumulativeInvestedAmount(holdings []data.Holdings) float64 {
 
 func TestCron() {
 	fmt.Println("In Test Cron")
+}
+
+func FetchNetWorthOverPeriods() {
+
 }
