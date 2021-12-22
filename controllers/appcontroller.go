@@ -36,7 +36,7 @@ func GetJWT() (string, error) {
 	claims["client"] = "testuser"
 	claims["aud"] = "ApiUsers"
 	claims["iss"] = "PortfolioApisApp"
-	claims["exp"] = time.Now().Add(time.Minute * 60).Unix()
+	claims["exp"] = time.Now().Add(time.Minute * 60000).Unix()
 
 	tokenString, err := token.SignedString(mySigningKey)
 
@@ -122,6 +122,10 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 	} else if (r.URL.Path == "/PortfolioApis/syncportfolio") && (r.Method == http.MethodPost) {
 		reqBody, _ := ioutil.ReadAll(r.Body)
 		msg := processor.GetPortfolioModelSync(reqBody, appC.db)
+		json.NewEncoder(w).Encode(msg)
+	} else if (r.URL.Path == "/PortfolioApis/fetchnetworthoverperiod") && (r.Method == http.MethodPost) {
+		reqBody, _ := ioutil.ReadAll(r.Body)
+		msg := processor.FetchNetWorthOverPeriods(reqBody, appC.db)
 		json.NewEncoder(w).Encode(msg)
 	}
 }

@@ -16,7 +16,7 @@ import (
 	"github.com/vijayyogesh/PortfolioApis/data"
 )
 
-var dailyPriceCache map[string][]data.CompaniesPriceData = make(map[string][]data.CompaniesPriceData)
+var dailyPriceCache map[string]map[string]data.CompaniesPriceData = make(map[string]map[string]data.CompaniesPriceData)
 
 var dailyPriceCacheLatest map[string]data.CompaniesPriceData = make(map[string]data.CompaniesPriceData)
 
@@ -220,23 +220,27 @@ func processDataErr(dataError error, k int) {
 }
 
 /* Fetch All Price Data initially from DB and use cache for subsequent requests */
-func FetchAllCompaniesCompletePrice(companyid string, db *sql.DB) {
-	var dailyPriceRecords []data.CompaniesPriceData
+func FetchCompaniesCompletePrice(companyid string, db *sql.DB) map[string]data.CompaniesPriceData {
+	var dailyPriceRecordsMap map[string]data.CompaniesPriceData = make(map[string]data.CompaniesPriceData)
 	if dailyPriceCache[companyid] != nil {
 		fmt.Println("From Cache")
-		dailyPriceRecords = dailyPriceCache[companyid]
+		dailyPriceRecordsMap = dailyPriceCache[companyid]
 	} else {
 		fmt.Println("From DB")
-		dailyPriceRecords = data.FetchCompaniesCompletePriceDataDB(companyid, db)
-		dailyPriceCache[companyid] = dailyPriceRecords
+		dailyPriceRecords := data.FetchCompaniesCompletePriceDataDB(companyid, db)
+		for _, priceData := range dailyPriceRecords {
+			dateStr := priceData.DateVal.Format("2006-01-02")
+			dailyPriceRecordsMap[dateStr] = priceData
+		}
+		dailyPriceCache[companyid] = dailyPriceRecordsMap
 	}
-	fmt.Println(len(dailyPriceRecords))
+	return dailyPriceRecordsMap
 }
 
 /* Fetch Latest Price Data from DB and use cache for subsequent requests */
 func FetchLatestCompaniesCompletePrice(companyid string, db *sql.DB) {
 	var dailyPriceRecordsLatest data.CompaniesPriceData
-	if dailyPriceCache[companyid] != nil {
+	if _, ok := dailyPriceCacheLatest[companyid]; ok {
 		fmt.Println("From Cache")
 		dailyPriceRecordsLatest = dailyPriceCacheLatest[companyid]
 	} else {
@@ -576,6 +580,41 @@ func TestCron() {
 	fmt.Println("In Test Cron")
 }
 
-func FetchNetWorthOverPeriods() {
+func FetchNetWorthOverPeriods(userInput []byte, db *sql.DB) map[string]float64 {
+	fmt.Println("In FetchNetWorthOverPeriods start")
 
+	//var networthOverPeriod data.NetworthOverPeriod
+	var networthMap map[string]float64 = make(map[string]float64)
+
+	userHoldings := GetUserHoldings(userInput, db)
+	for _, holdings := range userHoldings.Holdings {
+		dailyPriceRecordsMap := FetchCompaniesCompletePrice(holdings.Companyid, db)
+		fmt.Println(dailyPriceRecordsMap)
+
+		fmt.Println(holdings.BuyDate)
+		buyDate, err := time.Parse("2006-01-02T15:04:05Z", holdings.BuyDate)
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			qty, parseErr := strconv.ParseFloat(holdings.Quantity, 64)
+			if parseErr != nil {
+				fmt.Println(err)
+			}
+
+			/* Loop all dates from Buy Date and calc NW */
+			for buyDate.Before(time.Now()) {
+				fmt.Println(buyDate)
+				dateStr := buyDate.Format("2006-01-02")
+				dailyData, ok := dailyPriceRecordsMap[dateStr]
+				if ok {
+					networthMap[dateStr] = networthMap[dateStr] + (dailyData.CloseVal * qty)
+				}
+				buyDate = buyDate.AddDate(0, 0, 1)
+			}
+		}
+	}
+
+	fmt.Println(networthMap)
+	fmt.Println("In FetchNetWorthOverPeriods end")
+	return networthMap
 }

@@ -39,6 +39,7 @@ func main() {
 	http.Handle("/PortfolioApis/addmodelportfolio", *appC)
 	http.Handle("/PortfolioApis/getmodelportfolio", *appC)
 	http.Handle("/PortfolioApis/syncportfolio", *appC)
+	http.Handle("/PortfolioApis/fetchnetworthoverperiod", *appC)
 	http.ListenAndServe(":3000", nil)
 
 }

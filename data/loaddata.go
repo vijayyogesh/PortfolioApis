@@ -85,6 +85,15 @@ type AdjustedHolding struct {
 	PercentBelowReasonablePrice string `json:"percentBelowReasonablePrice"`
 }
 
+type NetworthOverPeriod struct {
+	NetworthWithDates []NetworthOnADate
+}
+
+type NetworthOnADate struct {
+	Date     string `json:"date"`
+	Networth string `json:"networth"`
+}
+
 const (
 	DB_USER     = "postgres"
 	DB_PASSWORD = "phorrj"
