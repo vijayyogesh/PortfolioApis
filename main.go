@@ -2,13 +2,14 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/robfig/cron/v3"
+	"github.com/spf13/viper"
 	"github.com/vijayyogesh/PortfolioApis/controllers"
-	"github.com/vijayyogesh/PortfolioApis/data"
 	"github.com/vijayyogesh/PortfolioApis/processor"
 
 	_ "github.com/lib/pq"
@@ -17,6 +18,15 @@ import (
 var db *sql.DB
 var appC *controllers.AppController
 var Logger *log.Logger
+
+type Config struct {
+	DBHost     string `mapstructure:"DB_HOST"`
+	DBDriver   string `mapstructure:"DB_DRIVER"`
+	DBUser     string `mapstructure:"DB_USER"`
+	DBPassword string `mapstructure:"DB_PASSWORD"`
+	DBName     string `mapstructure:"DB_NAME"`
+	DBPort     int    `mapstructure:"DB_PORT"`
+}
 
 func main() {
 	/*fmt.Println("In main - start tme: " + time.Now().String())
@@ -45,7 +55,9 @@ func main() {
 }
 
 func init() {
-	db = data.SetupDB()
+	//db = data.SetupDB()
+	config, _ := LoadConfig(".")
+	db = SetupDB(config)
 
 	// If the file doesn't exist, create it or append to the file
 	file, err := os.OpenFile("PortfolioApiLog.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
@@ -60,6 +72,22 @@ func init() {
 	appC.AppLogger.Println("Completed init")
 }
 
+func LoadConfig(path string) (config Config, err error) {
+	viper.AddConfigPath(path)
+	viper.SetConfigName("app")
+	viper.SetConfigType("env")
+
+	viper.AutomaticEnv()
+
+	err = viper.ReadInConfig()
+	if err != nil {
+		return
+	}
+
+	err = viper.Unmarshal(&config)
+	return
+}
+
 func startCronJobs() {
 	appC.AppLogger.Println("Starting Cron Jobs")
 	cronJob := cron.New()
@@ -68,4 +96,17 @@ func startCronJobs() {
 	})
 	cronJob.Start()
 	appC.AppLogger.Println("Completed Cron Jobs")
+}
+
+/* Setup DB */
+func SetupDB(config Config) *sql.DB {
+	fmt.Println("In setupDB")
+	dbinfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", config.DBHost, config.DBPort, config.DBUser, config.DBPassword, config.DBName)
+	db, err := sql.Open(config.DBDriver, dbinfo)
+	if err != nil {
+		panic("Error while initializing DB")
+	}
+	db.SetMaxOpenConns(20)
+	fmt.Println("Completed setupDB")
+	return db
 }

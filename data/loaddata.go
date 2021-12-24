@@ -94,28 +94,6 @@ type NetworthOnADate struct {
 	Networth string `json:"networth"`
 }
 
-const (
-	DB_USER     = "postgres"
-	DB_PASSWORD = "phorrj"
-	DB_NAME     = "PortfolioApis"
-)
-
-/* Setup DB */
-func SetupDB() *sql.DB {
-	dbinfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable", DB_USER, DB_PASSWORD, DB_NAME)
-	db, err := sql.Open("postgres", dbinfo)
-	db.SetMaxOpenConns(20)
-	checkErr(err)
-	return db
-}
-
-/* Check critcal errors */
-func checkErr(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
 func LoadPriceDataDB(dailyPriceRecords []CompaniesPriceData, db *sql.DB) {
 	valueStrings := make([]string, 0, len(dailyPriceRecords))
 	valueArgs := make([]interface{}, 0, len(dailyPriceRecords)*6)
