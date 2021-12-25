@@ -1,27 +1,24 @@
 package controllers
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/vijayyogesh/PortfolioApis/processor"
+	"github.com/vijayyogesh/PortfolioApis/util"
 )
 
 type AppController struct {
-	db        *sql.DB
-	AppLogger *log.Logger
+	AppUtil *util.AppUtil
 }
 
-func NewAppController(dbRef *sql.DB, logger *log.Logger) *AppController {
+func NewAppController(apputil *util.AppUtil) *AppController {
 	return &AppController{
-		db:        dbRef,
-		AppLogger: logger,
+		AppUtil: apputil,
 	}
 }
 
@@ -71,7 +68,7 @@ func AuthenticateToken(r *http.Request) bool {
 }
 
 func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	appC.AppLogger.Println("In Serve HTTP")
+	appC.AppUtil.AppLogger.Println("In Serve HTTP")
 
 	if (r.URL.Path == "/PortfolioApis/login") && (r.Method == http.MethodPost) {
 		msg, _ := GetJWT()
@@ -84,16 +81,16 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	appC.AppLogger.Println("Exiting Serve HTTP")
+	appC.AppUtil.AppLogger.Println("Exiting Serve HTTP")
 }
 
 func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppController) {
 	if (r.URL.Path == "/PortfolioApis/updateprices") && (r.Method == http.MethodPost) {
-		msg := processor.FetchAndUpdatePrices(appC.db)
+		msg := processor.FetchAndUpdatePrices(appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
 	}
 	if (r.URL.Path == "/PortfolioApis/updatemasterlist") && (r.Method == http.MethodPost) {
-		msg := processor.FetchAndUpdateCompaniesMasterList(appC.db)
+		msg := processor.FetchAndUpdateCompaniesMasterList(appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
 	}
 	if (r.URL.Path == "/PortfolioApis/adduser") && (r.Method == http.MethodPost) {
@@ -101,31 +98,31 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 		if err != nil {
 			fmt.Println(err)
 		}
-		msg := processor.AddUser(reqBody, appC.db)
+		msg := processor.AddUser(reqBody, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == "/PortfolioApis/adduserholdings") && (r.Method == http.MethodPost) {
 		reqBody, _ := ioutil.ReadAll(r.Body)
-		msg := processor.AddUserHoldings(reqBody, appC.db)
+		msg := processor.AddUserHoldings(reqBody, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == "/PortfolioApis/getuserholdings") && (r.Method == http.MethodPost) {
 		reqBody, _ := ioutil.ReadAll(r.Body)
-		msg := processor.GetUserHoldings(reqBody, appC.db)
+		msg := processor.GetUserHoldings(reqBody, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == "/PortfolioApis/addmodelportfolio") && (r.Method == http.MethodPost) {
 		reqBody, _ := ioutil.ReadAll(r.Body)
-		msg := processor.AddModelPortfolio(reqBody, appC.db)
+		msg := processor.AddModelPortfolio(reqBody, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == "/PortfolioApis/getmodelportfolio") && (r.Method == http.MethodPost) {
 		reqBody, _ := ioutil.ReadAll(r.Body)
-		msg := processor.GetModelPortfolio(reqBody, appC.db)
+		msg := processor.GetModelPortfolio(reqBody, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == "/PortfolioApis/syncportfolio") && (r.Method == http.MethodPost) {
 		reqBody, _ := ioutil.ReadAll(r.Body)
-		msg := processor.GetPortfolioModelSync(reqBody, appC.db)
+		msg := processor.GetPortfolioModelSync(reqBody, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == "/PortfolioApis/fetchnetworthoverperiod") && (r.Method == http.MethodPost) {
 		reqBody, _ := ioutil.ReadAll(r.Body)
-		msg := processor.FetchNetWorthOverPeriods(reqBody, appC.db)
+		msg := processor.FetchNetWorthOverPeriods(reqBody, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
 	}
 }
