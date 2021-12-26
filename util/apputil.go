@@ -11,6 +11,7 @@ import (
 )
 
 var Logger *log.Logger
+var appUtil *AppUtil
 
 type AppUtil struct {
 	Db        *sql.DB
@@ -26,6 +27,8 @@ type Config struct {
 	DBName     string `mapstructure:"DB_NAME"`
 	DBPort     int    `mapstructure:"DB_PORT"`
 	APPPort    int    `mapstructure:"APP_PORT"`
+	AuthKey    string `mapstructure:"AUTH_JWT_KEY"`
+	AuthExp    int    `mapstructure:"AUTH_JWT_EXP_HRS"`
 }
 
 /* Initialize/Create AppLevel/Global objects
@@ -38,11 +41,16 @@ func NewAppUtil() *AppUtil {
 	Logger.Println("Completed NewAppUtil")
 	Logger.Println(" --- INITIALIZATION SUCCESSFULL --- ")
 
-	return &AppUtil{
+	appUtil = &AppUtil{
 		db,
 		Logger,
 		config,
 	}
+	return appUtil
+}
+
+func GetAppUtil() *AppUtil {
+	return appUtil
 }
 
 /* Log error and EXIT COMPLETELY. Do not use unless program needs to be terminated. */

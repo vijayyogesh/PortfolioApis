@@ -25,4 +25,8 @@ const (
 	AppRouteGetModelPf       string = "/PortfolioApis/getmodelportfolio"
 	AppRouteSyncPf           string = "/PortfolioApis/syncportfolio"
 	AppRouteNWPeriod         string = "/PortfolioApis/fetchnetworthoverperiod"
+
+	/* Auth/JWT */
+	AppJWTAudience = "ApiUsers"
+	AppJWTIssuer   = "PortfolioApisApp"
 )

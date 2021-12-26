@@ -2,12 +2,12 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
-	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/vijayyogesh/PortfolioApis/auth"
+	"github.com/vijayyogesh/PortfolioApis/constants"
+	"github.com/vijayyogesh/PortfolioApis/data"
 	"github.com/vijayyogesh/PortfolioApis/processor"
 	"github.com/vijayyogesh/PortfolioApis/util"
 )
@@ -22,107 +22,100 @@ func NewAppController(apputil *util.AppUtil) *AppController {
 	}
 }
 
-var mySigningKey = []byte("UG9ydGZvbGlvQXBpLUtleSM=")
+/* Initial Handler for all routes/endpoints */
+func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	appC.AppUtil.AppLogger.Println("Starting ServeHTTP")
 
-func GetJWT() (string, error) {
-	token := jwt.New(jwt.SigningMethodHS256)
-
-	claims := token.Claims.(jwt.MapClaims)
-
-	claims["authorized"] = true
-	claims["client"] = "testuser"
-	claims["aud"] = "ApiUsers"
-	claims["iss"] = "PortfolioApisApp"
-	claims["exp"] = time.Now().Add(time.Minute * 60000).Unix()
-
-	tokenString, err := token.SignedString(mySigningKey)
-
+	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		fmt.Println(err.Error())
+		handlePayloadError(err, appC, w)
+	} else {
+		/* Check UserId in Payload */
+		userId, err := getUserId(reqBody, appC)
+
+		if userId != "" && err == nil {
+			/* Handle Login */
+			if (r.URL.Path == constants.AppRouteLogin) && (r.Method == http.MethodPost) {
+				msg, err := auth.GetJWT(userId)
+				if err != nil {
+					appC.AppUtil.AppLogger.Println("Error encountered while generating JWT")
+					appC.AppUtil.AppLogger.Println(err)
+					msg = "Error encountered while generating JWT"
+				}
+				json.NewEncoder(w).Encode(msg)
+
+			} else {
+				/* Authenticate Token when already logged In */
+				if auth.AuthenticateToken(r, userId) {
+					ProcessAppRequests(w, r, appC, reqBody)
+				} else {
+					json.NewEncoder(w).Encode("Unauthorized!!")
+				}
+			}
+		} else {
+			appC.AppUtil.AppLogger.Println("Invalid request")
+		}
+	}
+
+	appC.AppUtil.AppLogger.Println("Completed ServeHTTP")
+}
+
+/* Get UserId from request Payload */
+func getUserId(reqBody []byte, appC AppController) (string, error) {
+	var user data.User
+	err := json.Unmarshal(reqBody, &user)
+	if err != nil {
+		appC.AppUtil.AppLogger.Println(err)
 		return "", err
 	}
-
-	return tokenString, nil
+	return user.UserId, err
 }
 
-func AuthenticateToken(r *http.Request) bool {
-	if r.Header["Token"] != nil {
-		token, err := jwt.Parse(r.Header["Token"][0], func(token *jwt.Token) (interface{}, error) {
-			return mySigningKey, nil
-		})
-		if err != nil {
-			fmt.Println("Error while parsing Token")
-			fmt.Println(err)
-		}
+/* Process App routes post JWT authentication */
+func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppController, payload []byte) {
 
-		if token.Valid {
-			fmt.Println("Token Authenticated")
-			return true
-		} else {
-			fmt.Println("Invalid Token")
-			return false
-		}
-	}
-	fmt.Println("Token Not Found")
-	return false
-}
-
-func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	appC.AppUtil.AppLogger.Println("In Serve HTTP")
-
-	if (r.URL.Path == "/PortfolioApis/login") && (r.Method == http.MethodPost) {
-		msg, _ := GetJWT()
-		json.NewEncoder(w).Encode(msg)
-	} else {
-		if AuthenticateToken(r) {
-			ProcessAppRequests(w, r, appC)
-		} else {
-			json.NewEncoder(w).Encode("Unauthorized!!")
-		}
-	}
-
-	appC.AppUtil.AppLogger.Println("Exiting Serve HTTP")
-}
-
-func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppController) {
-	if (r.URL.Path == "/PortfolioApis/updateprices") && (r.Method == http.MethodPost) {
+	/* Commented as updatePrices is taken care by Cron Job */
+	/*if (r.URL.Path == constants.AppRouteUpdatePrices) && (r.Method == http.MethodPost) {
 		msg := processor.FetchAndUpdatePrices(appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
-	}
-	if (r.URL.Path == "/PortfolioApis/updatemasterlist") && (r.Method == http.MethodPost) {
+	} */
+
+	if (r.URL.Path == constants.AppRouteUpdateMasterList) && (r.Method == http.MethodPost) {
+		/* Route to update/refresh master list of companies */
 		msg := processor.FetchAndUpdateCompaniesMasterList(appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
-	}
-	if (r.URL.Path == "/PortfolioApis/adduser") && (r.Method == http.MethodPost) {
-		reqBody, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			fmt.Println(err)
-		}
-		msg := processor.AddUser(reqBody, appC.AppUtil.Db)
+	} else if (r.URL.Path == constants.AppRouteAddUser) && (r.Method == http.MethodPost) {
+		/* Route to add new user into system */
+		msg := processor.AddUser(payload, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
-	} else if (r.URL.Path == "/PortfolioApis/adduserholdings") && (r.Method == http.MethodPost) {
-		reqBody, _ := ioutil.ReadAll(r.Body)
-		msg := processor.AddUserHoldings(reqBody, appC.AppUtil.Db)
+	} else if (r.URL.Path == constants.AppRouteAddUserHoldings) && (r.Method == http.MethodPost) {
+		/* Route to add user holdings */
+		msg := processor.AddUserHoldings(payload, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
-	} else if (r.URL.Path == "/PortfolioApis/getuserholdings") && (r.Method == http.MethodPost) {
-		reqBody, _ := ioutil.ReadAll(r.Body)
-		msg := processor.GetUserHoldings(reqBody, appC.AppUtil.Db)
+	} else if (r.URL.Path == constants.AppRouteGetUserHoldings) && (r.Method == http.MethodPost) {
+		/* Route to fetch User Holdings */
+		msg := processor.GetUserHoldings(payload, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
-	} else if (r.URL.Path == "/PortfolioApis/addmodelportfolio") && (r.Method == http.MethodPost) {
-		reqBody, _ := ioutil.ReadAll(r.Body)
-		msg := processor.AddModelPortfolio(reqBody, appC.AppUtil.Db)
+	} else if (r.URL.Path == constants.AppRouteAddModelPf) && (r.Method == http.MethodPost) {
+		/* Route to Add Model Portfolio */
+		msg := processor.AddModelPortfolio(payload, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
-	} else if (r.URL.Path == "/PortfolioApis/getmodelportfolio") && (r.Method == http.MethodPost) {
-		reqBody, _ := ioutil.ReadAll(r.Body)
-		msg := processor.GetModelPortfolio(reqBody, appC.AppUtil.Db)
+	} else if (r.URL.Path == constants.AppRouteGetModelPf) && (r.Method == http.MethodPost) {
+		/* Route to fetch Model Portfolio */
+		msg := processor.GetModelPortfolio(payload, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
-	} else if (r.URL.Path == "/PortfolioApis/syncportfolio") && (r.Method == http.MethodPost) {
-		reqBody, _ := ioutil.ReadAll(r.Body)
-		msg := processor.GetPortfolioModelSync(reqBody, appC.AppUtil.Db)
+	} else if (r.URL.Path == constants.AppRouteSyncPf) && (r.Method == http.MethodPost) {
+		/* Route to sync Model Pf with actual Pf */
+		msg := processor.GetPortfolioModelSync(payload, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
-	} else if (r.URL.Path == "/PortfolioApis/fetchnetworthoverperiod") && (r.Method == http.MethodPost) {
-		reqBody, _ := ioutil.ReadAll(r.Body)
-		msg := processor.FetchNetWorthOverPeriods(reqBody, appC.AppUtil.Db)
+	} else if (r.URL.Path == constants.AppRouteNWPeriod) && (r.Method == http.MethodPost) {
+		/* Route to display NetWorth over a timeframe */
+		msg := processor.FetchNetWorthOverPeriods(payload, appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
 	}
+}
+
+func handlePayloadError(err error, appC AppController, w http.ResponseWriter) {
+	appC.AppUtil.AppLogger.Println(err)
+	json.NewEncoder(w).Encode("Error in Paylod Data. Please check !!")
 }
