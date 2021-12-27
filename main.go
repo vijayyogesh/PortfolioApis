@@ -59,7 +59,8 @@ func init() {
 func startCronJobs() {
 	cronJob := cron.New()
 	cronJob.AddFunc("@hourly", func() {
-		processor.FetchAndUpdatePrices(appUtil.Db)
+		msg := processor.FetchAndUpdatePrices(appUtil.Db)
+		appUtil.AppLogger.Println(msg)
 	})
 	cronJob.Start()
 	appUtil.AppLogger.Println("Scheduled Cron Jobs")

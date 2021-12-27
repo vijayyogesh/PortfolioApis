@@ -60,17 +60,24 @@ func FetchAndUpdateCompaniesMasterList() string {
 2) Load into DB
 */
 func FetchAndUpdatePrices(db *sql.DB) string {
-	//Fetch Unique Company Details
-	companiesData, err := FetchCompanies(db)
-	if err == nil {
-		//Download data file
-		DownloadDataAsync(companiesData)
 
-		//Read Data From File & Write into DB asynchronously
-		LoadPriceData(db)
+	/* Update only during market hours */
+	hrs, _, _ := time.Now().Clock()
+	if hrs >= 10 && hrs <= 17 {
+
+		//Fetch Unique Company Details
+		companiesData, err := FetchCompanies(db)
+		if err == nil {
+			//Download data file
+			DownloadDataAsync(companiesData)
+
+			//Read Data From File & Write into DB asynchronously
+			LoadPriceData(db)
+		}
+		return "Prices updated successfully"
+	} else {
+		return "Prices not updated as current time is outside market hours"
 	}
-
-	return "Prices updated successfully"
 }
 
 /* ROUTER METHODS END */
@@ -126,7 +133,7 @@ func DownloadDataAsync(companiesData []data.Company) {
 
 /* Download data file from online */
 func DownloadDataFile(companyId string, fromTime time.Time) error {
-	filePath := constants.AppDataDir + companyId + constants.AppDataPricesFileSuffix
+	filePath := appUtil.Config.AppDataDir + companyId + constants.AppDataPricesFileSuffix
 	url := constants.AppDataPricesUrl + companyId + constants.AppDataPricesUrlSuffix
 
 	out, err := os.Create(filePath)
@@ -174,7 +181,7 @@ func LoadPriceData(db *sql.DB) {
 
 		for _, company := range companies {
 			wg.Add(1)
-			filePath := constants.AppDataDir + company.CompanyId + constants.AppDataPricesFileSuffix
+			filePath := appUtil.Config.AppDataDir + company.CompanyId + constants.AppDataPricesFileSuffix
 
 			go func(companyid string) {
 				defer wg.Done()
@@ -298,7 +305,7 @@ func FetchLatestCompaniesCompletePrice(companyid string, db *sql.DB) {
 /* Download data file from online */
 func DownloadCompaniesMaster() error {
 
-	filePath := constants.AppDataDir + constants.AppDataMasterFile
+	filePath := appUtil.Config.AppDataDir + constants.AppDataMasterFile
 	url := constants.AppDataMasterUrl
 
 	out, err := os.Create(filePath)
@@ -330,7 +337,7 @@ func DownloadCompaniesMaster() error {
 
 /* Read Companies Master Data From File & Write into DB  */
 func LoadCompaniesMaster() error {
-	companiesMasterList, errRead := ReadCompaniesMasterCsv(constants.AppDataDir + constants.AppDataMasterFile)
+	companiesMasterList, errRead := ReadCompaniesMasterCsv(appUtil.Config.AppDataDir + constants.AppDataMasterFile)
 	if errRead != nil {
 		return errRead
 	}

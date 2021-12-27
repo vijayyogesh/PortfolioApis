@@ -31,7 +31,6 @@ const (
 	AppJWTIssuer   = "PortfolioApisApp"
 
 	/* AppFile */
-	AppDataDir              = "C:\\Users\\vijay\\root\\development\\data\\"
 	AppDataMasterUrl        = "https://www1.nseindia.com/content/indices/ind_nifty500list.csv"
 	AppDataMasterFile       = "TOP500.csv"
 	AppDataPricesFileSuffix = ".NS.csv"

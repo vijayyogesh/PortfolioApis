@@ -27,6 +27,7 @@ type Config struct {
 	DBName     string `mapstructure:"DB_NAME"`
 	DBPort     int    `mapstructure:"DB_PORT"`
 	APPPort    int    `mapstructure:"APP_PORT"`
+	AppDataDir string `mapstructure:"APP_DATA_DIR"`
 	AuthKey    string `mapstructure:"AUTH_JWT_KEY"`
 	AuthExp    int    `mapstructure:"AUTH_JWT_EXP_HRS"`
 }
@@ -87,7 +88,7 @@ func LoadConfig(path string) (config *Config) {
 	errUnmarshal := viper.Unmarshal(&config)
 	handleCriticalErr(errUnmarshal)
 
-	Logger.Printf("ENV FILE VALUES - host=%s port=%d user=%s dbname=%s dbdriver=%s", config.DBHost, config.DBPort, config.DBUser, config.DBName, config.DBDriver)
+	Logger.Printf("ENV FILE VALUES - host=%s port=%d user=%s dbname=%s dbdriver=%s datadir=%s", config.DBHost, config.DBPort, config.DBUser, config.DBName, config.DBDriver, config.AppDataDir)
 	Logger.Println("Completed LoadConfig")
 	return config
 }
