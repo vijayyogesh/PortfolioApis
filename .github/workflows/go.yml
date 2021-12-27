@@ -21,7 +21,5 @@ jobs:
     - name: Build PortfolioApis
       run: go build .
     
-    - name: Run vet & lint
-      run: |
-        go vet .
-        golint .
+    - name: Run vet
+      run: go vet .
