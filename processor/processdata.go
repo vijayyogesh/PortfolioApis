@@ -13,7 +13,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vijayyogesh/PortfolioApis/constants"
 	"github.com/vijayyogesh/PortfolioApis/data"
+	"github.com/vijayyogesh/PortfolioApis/util"
 )
 
 var dailyPriceCache map[string]map[string]data.CompaniesPriceData = make(map[string]map[string]data.CompaniesPriceData)
@@ -24,34 +26,69 @@ var companiesCache []data.Company
 
 var usersCache map[string]data.User = make(map[string]data.User)
 
+var appUtil *util.AppUtil
+
+/* Initializing Processor with required config */
+func InitProcessor(appUtilInput *util.AppUtil) {
+	appUtil = appUtilInput
+}
+
+/* ROUTER METHODS START */
+
+/* Fetch/Update Master Comapnies List */
+func FetchAndUpdateCompaniesMasterList() string {
+	appUtil.AppLogger.Println("Starting FetchAndUpdateCompaniesMasterList")
+
+	err := DownloadCompaniesMaster()
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+		return constants.AppErrMasterList
+	}
+
+	errLoad := LoadCompaniesMaster()
+	if errLoad != nil {
+		appUtil.AppLogger.Println(errLoad)
+		return constants.AppErrMasterList
+	}
+
+	appUtil.AppLogger.Println("Completed FetchAndUpdateCompaniesMasterList")
+	return constants.AppSuccessMasterList
+}
+
 /* Master method that does the following
 1) Download data file based on TS
 2) Load into DB
 */
 func FetchAndUpdatePrices(db *sql.DB) string {
 	//Fetch Unique Company Details
-	companiesData := FetchCompanies(db)
+	companiesData, err := FetchCompanies(db)
+	if err == nil {
+		//Download data file
+		DownloadDataAsync(companiesData)
 
-	//Download data file in parallel
-	DownloadDataAsync(companiesData)
-
-	//Read Data From File & Write into DB asynchronously
-	LoadPriceData(db)
+		//Read Data From File & Write into DB asynchronously
+		LoadPriceData(db)
+	}
 
 	return "Prices updated successfully"
 }
 
+/* ROUTER METHODS END */
+
 /* Fetch Unique Company Details */
-func FetchCompanies(db *sql.DB) []data.Company {
-	var companies []data.Company
+func FetchCompanies(db *sql.DB) ([]data.Company, error) {
 	if companiesCache != nil {
-		fmt.Println("Fetching Companies Master List From Cache")
-		return companiesCache
+		appUtil.AppLogger.Println("Fetching Companies Master List From Cache")
+		return companiesCache, nil
 	} else {
-		fmt.Println("Fetching Companies Master List From DB")
-		companies = data.FetchCompaniesDB(db)
+		appUtil.AppLogger.Println("Fetching Companies Master List From DB")
+		companies, err := data.FetchCompaniesDB(db)
+		if err != nil {
+			appUtil.AppLogger.Println(err)
+			return companies, err
+		}
 		companiesCache = companies
-		return companies
+		return companies, nil
 	}
 }
 
@@ -72,6 +109,7 @@ func DownloadDataAsync(companiesData []data.Company) {
 	wg.Wait()
 	*/
 
+	/* Avoided Go routine as Yahoo Finance blocks more than 5 hits per second */
 	for _, company := range companiesData {
 		companyId := company.CompanyId
 		fromTime := company.LoadDate
@@ -79,16 +117,17 @@ func DownloadDataAsync(companiesData []data.Company) {
 			fromTime = time.Date(1996, 1, 1, 0, 0, 0, 0, time.UTC)
 		}
 		time.Sleep(2 * time.Second)
-		DownloadDataFile(companyId, fromTime)
+		err := DownloadDataFile(companyId, fromTime)
+		if err != nil {
+			appUtil.AppLogger.Println(err)
+		}
 	}
 }
 
 /* Download data file from online */
 func DownloadDataFile(companyId string, fromTime time.Time) error {
-	//fmt.Println("Loading file for company " + companyId)
-	filePath := "C:\\Users\\vijay\\root\\development\\data\\" + companyId + ".NS.csv"
-	url := "https://query1.finance.yahoo.com/v7/finance/download/" + companyId +
-		".NS?period1=%s&period2=%s&interval=1d&events=history&includeAdjustedClose=true"
+	filePath := constants.AppDataDir + companyId + constants.AppDataPricesFileSuffix
+	url := constants.AppDataPricesUrl + companyId + constants.AppDataPricesUrlSuffix
 
 	out, err := os.Create(filePath)
 	if err != nil {
@@ -97,13 +136,12 @@ func DownloadDataFile(companyId string, fromTime time.Time) error {
 	defer out.Close()
 
 	/* Form start and end time */
-	//startTime := strconv.Itoa(int(time.Date(1996, 1, 1, 0, 0, 0, 0, time.UTC).Unix()))
 	startTime := strconv.Itoa(int(fromTime.Unix()))
 	endTime := strconv.Itoa(int(time.Now().Unix()))
-	//fmt.Println("Start Time " + startTime + " End Time " + endTime)
+
 	url = fmt.Sprintf(url, startTime, endTime)
-	//fmt.Println("filePath " + filePath)
-	fmt.Println("url " + url)
+
+	appUtil.AppLogger.Println("Hitting url " + url + " for company - " + companyId)
 
 	/* Get the data from Yahoo Finance */
 	resp, err := http.Get(url)
@@ -123,41 +161,47 @@ func DownloadDataFile(companyId string, fromTime time.Time) error {
 		return err
 	}
 
-	fmt.Println("Finished loading file for company " + companyId)
+	appUtil.AppLogger.Println("Completed loading file for company " + companyId)
 	return nil
 }
 
 /* Read Data From File & Write into DB asynchronously */
 func LoadPriceData(db *sql.DB) {
-	companies := FetchCompanies(db)
-	//fmt.Println(companies)
-	var totRecordsCount int64
-	var wg sync.WaitGroup
+	companies, err := FetchCompanies(db)
+	if err == nil {
+		var totRecordsCount int64
+		var wg sync.WaitGroup
 
-	for _, company := range companies {
-		wg.Add(1)
-		filePath := "C:\\Users\\vijay\\root\\development\\data\\" + company.CompanyId + ".NS.csv"
-		fmt.Println(filePath)
+		for _, company := range companies {
+			wg.Add(1)
+			filePath := constants.AppDataDir + company.CompanyId + constants.AppDataPricesFileSuffix
 
-		go func(companyid string) {
-			defer wg.Done()
-			var err error
-			companiesdata, recordsCount, err := ReadDailyPriceCsv(filePath, companyid)
-			if err != nil {
-				fmt.Println(err.Error(), "Error returned from ReadDailyPriceCsv ")
-			}
-			fmt.Println(companyid, " - ", recordsCount)
-			if recordsCount != 0 {
-				atomic.AddInt64(&totRecordsCount, int64(recordsCount))
-				data.LoadPriceDataDB(companiesdata, db)
-				data.UpdateLoadDate(db, companyid, time.Now())
-			} else {
-				fmt.Println("Skipping DB Insert as file record count is zero for - " + companyid)
-			}
-		}(company.CompanyId)
+			go func(companyid string) {
+				defer wg.Done()
+				var err error
+				companiesdata, recordsCount, err := ReadDailyPriceCsv(filePath, companyid)
+				if err != nil {
+					appUtil.AppLogger.Println(err.Error(), "Error returned from ReadDailyPriceCsv ")
+				}
+				appUtil.AppLogger.Printf("CompanyId - %s RecordsCount - %d ", companyid, recordsCount)
+				if recordsCount != 0 {
+					atomic.AddInt64(&totRecordsCount, int64(recordsCount))
+					appUtil.AppLogger.Printf("Inserting %d records for company %s ", recordsCount, companyid)
+					err := data.LoadPriceDataDB(companiesdata, db)
+					/* Ignoring data errors for now */
+					if err != nil {
+						appUtil.AppLogger.Println(err.Error(), " Error while inserting Records for CompanyId: "+companyid)
+					}
+					data.UpdateLoadDate(db, companyid, time.Now())
+				} else {
+					appUtil.AppLogger.Println("Skipping DB Insert as file record count is zero for - " + companyid)
+				}
+			}(company.CompanyId)
+		}
+		wg.Wait()
+	} else {
+		appUtil.AppLogger.Println(err)
 	}
-	wg.Wait()
-	fmt.Println(totRecordsCount)
 }
 
 func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPriceData, int, error) {
@@ -167,17 +211,17 @@ func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPrice
 	file, err := os.Open(filePath)
 	/* Return if error */
 	if err != nil {
-		fmt.Println(err.Error(), "Error while opening file ")
+		appUtil.AppLogger.Println(err.Error(), "Error while opening file ")
 		return companiesdata, 0, fmt.Errorf("error while opening file %s ", filePath)
 	}
-	fmt.Println(file.Name())
+	appUtil.AppLogger.Println("Reading from File - " + file.Name() + " for company - " + companyid)
 
 	/* Read csv */
 	csvReader := csv.NewReader(file)
 	records, err := csvReader.ReadAll()
 	/* Return if error */
 	if err != nil {
-		fmt.Println(err.Error(), "Error while reading csv ")
+		appUtil.AppLogger.Println(err.Error(), "Error while reading csv ")
 		return companiesdata, 0, fmt.Errorf("error while reading csv %s ", filePath)
 	}
 	/* Close resources */
@@ -188,34 +232,34 @@ func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPrice
 		if k != 0 {
 
 			openval, dataError := strconv.ParseFloat(v[len(v)-6], 64)
-			processDataErr(dataError, k)
+			processDataErr(dataError, k, companyid)
 
 			highval, dataError := strconv.ParseFloat(v[len(v)-5], 64)
-			processDataErr(dataError, k)
+			processDataErr(dataError, k, companyid)
 
 			lowval, dataError := strconv.ParseFloat(v[len(v)-4], 64)
-			processDataErr(dataError, k)
+			processDataErr(dataError, k, companyid)
 
 			closeval, dataError := strconv.ParseFloat(v[len(v)-3], 64)
-			processDataErr(dataError, k)
+			processDataErr(dataError, k, companyid)
 
 			dateval, dataError := time.Parse("2006-01-02", v[len(v)-7])
-			processDataErr(dataError, k)
+			processDataErr(dataError, k, companyid)
 
 			companiesdata = append(companiesdata, data.CompaniesPriceData{CompanyId: companyid, DateVal: dateval, OpenVal: openval, HighVal: highval, LowVal: lowval, CloseVal: closeval})
 		}
 	}
 
-	fmt.Println("Name - " + companyid)
-	//fmt.Println(len(companiesdata))
+	appUtil.AppLogger.Println("Completed Reading from File for company - " + companyid)
 	return companiesdata, len(companiesdata), nil
 
 }
 
 /* Non critical record error which can be logged and ignored */
-func processDataErr(dataError error, k int) {
+func processDataErr(dataError error, k int, companyid string) {
 	if dataError != nil {
-		fmt.Println(dataError.Error(), "Error while processing data", k)
+		appUtil.AppLogger.Println(dataError)
+		appUtil.AppLogger.Printf("Error while processing/reading data for Company - %s record - %d ", companyid, k)
 	}
 }
 
@@ -251,19 +295,11 @@ func FetchLatestCompaniesCompletePrice(companyid string, db *sql.DB) {
 	fmt.Println(dailyPriceRecordsLatest)
 }
 
-func FetchAndUpdateCompaniesMasterList(db *sql.DB) string {
-	DownloadCompaniesMaster()
-
-	LoadCompaniesMaster(db)
-
-	return "Master companies list loaded successfully"
-}
-
 /* Download data file from online */
 func DownloadCompaniesMaster() error {
-	fmt.Println("Loading Companies Master List ")
-	filePath := "C:\\Users\\vijay\\root\\development\\data\\" + "TOP500" + ".csv"
-	url := "https://www1.nseindia.com/content/indices/ind_nifty500list.csv"
+
+	filePath := constants.AppDataDir + constants.AppDataMasterFile
+	url := constants.AppDataMasterUrl
 
 	out, err := os.Create(filePath)
 	if err != nil {
@@ -289,21 +325,23 @@ func DownloadCompaniesMaster() error {
 		return err
 	}
 
-	fmt.Println("Finished downloading Companies Master List File")
 	return nil
 }
 
 /* Read Companies Master Data From File & Write into DB  */
-func LoadCompaniesMaster(db *sql.DB) {
-	companiesMasterList, err := ReadCompaniesMasterCsv("C:\\Users\\vijay\\root\\development\\data\\" + "TOP500" + ".csv")
-	if err == nil {
-		LoadCompaniesMasterList(db, companiesMasterList)
+func LoadCompaniesMaster() error {
+	companiesMasterList, errRead := ReadCompaniesMasterCsv(constants.AppDataDir + constants.AppDataMasterFile)
+	if errRead != nil {
+		return errRead
 	}
+	errLoad := LoadCompaniesMasterList(companiesMasterList)
+	return errLoad
 }
 
 /* Write Companies Master List into DB */
-func LoadCompaniesMasterList(db *sql.DB, companiesMasterList []data.Company) {
-	data.LoadCompaniesMasterListDB(companiesMasterList, db)
+func LoadCompaniesMasterList(companiesMasterList []data.Company) error {
+	err := data.LoadCompaniesMasterListDB(companiesMasterList, appUtil)
+	return err
 }
 
 func ReadCompaniesMasterCsv(filePath string) ([]data.Company, error) {
@@ -313,17 +351,17 @@ func ReadCompaniesMasterCsv(filePath string) ([]data.Company, error) {
 	file, err := os.Open(filePath)
 	/* Return if error opening file */
 	if err != nil {
-		fmt.Println(err.Error(), "Error while opening file ")
+		appUtil.AppLogger.Println(err.Error(), "Error while opening file ")
 		return companiesMasterList, fmt.Errorf("error while opening file %s ", filePath)
 	}
-	fmt.Println(file.Name())
+	appUtil.AppLogger.Println("Reading from File - " + file.Name())
 
 	/* Read csv */
 	csvReader := csv.NewReader(file)
 	records, err := csvReader.ReadAll()
 	/* Return if error */
 	if err != nil {
-		fmt.Println(err.Error(), "Error while reading csv ")
+		appUtil.AppLogger.Println(err.Error(), "Error while reading csv ")
 		return companiesMasterList, fmt.Errorf("error while reading csv %s ", filePath)
 	}
 	/* Close resources */
@@ -339,8 +377,7 @@ func ReadCompaniesMasterCsv(filePath string) ([]data.Company, error) {
 		}
 	}
 
-	fmt.Println(len(companiesMasterList))
-	fmt.Println((companiesMasterList))
+	appUtil.AppLogger.Println("Records Read From File - ", len(companiesMasterList))
 	return companiesMasterList, nil
 
 }

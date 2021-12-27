@@ -29,4 +29,20 @@ const (
 	/* Auth/JWT */
 	AppJWTAudience = "ApiUsers"
 	AppJWTIssuer   = "PortfolioApisApp"
+
+	/* AppFile */
+	AppDataDir              = "C:\\Users\\vijay\\root\\development\\data\\"
+	AppDataMasterUrl        = "https://www1.nseindia.com/content/indices/ind_nifty500list.csv"
+	AppDataMasterFile       = "TOP500.csv"
+	AppDataPricesFileSuffix = ".NS.csv"
+	AppDataPricesUrl        = "https://query1.finance.yahoo.com/v7/finance/download/"
+	AppDataPricesUrlSuffix  = ".NS?period1=%s&period2=%s&interval=1d&events=history&includeAdjustedClose=true"
+
+	/* Error Codes */
+	AppErrUserUnauthorized = "E100: User is Unauthorized!!. Please check Token value."
+	AppErrJWTAuth          = "E101: Error encountered while authenticating user"
+	AppErrUserIdInvalid    = "E102: Please provide a valid UserId."
+
+	AppErrMasterList     = "E200: Error encountered while loading companies master list"
+	AppSuccessMasterList = "Master companies list loaded successfully"
 )

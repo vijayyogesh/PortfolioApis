@@ -40,7 +40,7 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					appC.AppUtil.AppLogger.Println("Error encountered while generating JWT")
 					appC.AppUtil.AppLogger.Println(err)
-					msg = "Error encountered while generating JWT"
+					msg = constants.AppErrJWTAuth
 				}
 				json.NewEncoder(w).Encode(msg)
 
@@ -49,11 +49,12 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				if auth.AuthenticateToken(r, userId) {
 					ProcessAppRequests(w, r, appC, reqBody)
 				} else {
-					json.NewEncoder(w).Encode("Unauthorized!!")
+					json.NewEncoder(w).Encode(constants.AppErrUserUnauthorized)
 				}
 			}
 		} else {
 			appC.AppUtil.AppLogger.Println("Invalid request")
+			json.NewEncoder(w).Encode(constants.AppErrUserIdInvalid)
 		}
 	}
 
@@ -80,9 +81,11 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 		json.NewEncoder(w).Encode(msg)
 	} */
 
+	processor.InitProcessor(appC.AppUtil)
+
 	if (r.URL.Path == constants.AppRouteUpdateMasterList) && (r.Method == http.MethodPost) {
 		/* Route to update/refresh master list of companies */
-		msg := processor.FetchAndUpdateCompaniesMasterList(appC.AppUtil.Db)
+		msg := processor.FetchAndUpdateCompaniesMasterList()
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == constants.AppRouteAddUser) && (r.Method == http.MethodPost) {
 		/* Route to add new user into system */

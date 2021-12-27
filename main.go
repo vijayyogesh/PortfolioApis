@@ -37,8 +37,9 @@ func main() {
 	http.Handle(constants.AppRouteSyncPf, *appC)
 	http.Handle(constants.AppRouteNWPeriod, *appC)
 
-	appUtil.AppLogger.Println("Listening and Serving In Port = ", appUtil.Config.APPPort)
+	appUtil.AppLogger.Println("----- STARTED PORTFOLIO APIS -----")
 
+	appUtil.AppLogger.Println("Listening and Serving In Port = ", appUtil.Config.APPPort)
 	http.ListenAndServe(fmt.Sprintf(":%d", appUtil.Config.APPPort), nil)
 }
 
@@ -48,14 +49,18 @@ func init() {
 
 	/* Initialize Controller */
 	appC = controllers.NewAppController(appUtil)
+
+	processor.InitProcessor(appC.AppUtil)
+
+	/* Start scheduled jobs */
+	startCronJobs()
 }
 
 func startCronJobs() {
-	appUtil.AppLogger.Println("Starting Cron Jobs")
 	cronJob := cron.New()
 	cronJob.AddFunc("@hourly", func() {
 		processor.FetchAndUpdatePrices(appUtil.Db)
 	})
 	cronJob.Start()
-	appUtil.AppLogger.Println("Completed Cron Jobs")
+	appUtil.AppLogger.Println("Scheduled Cron Jobs")
 }

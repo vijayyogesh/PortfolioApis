@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vijayyogesh/PortfolioApis/util"
 )
 
 type Company struct {
@@ -94,10 +96,9 @@ type NetworthOnADate struct {
 	Networth string `json:"networth"`
 }
 
-func LoadPriceDataDB(dailyPriceRecords []CompaniesPriceData, db *sql.DB) {
+func LoadPriceDataDB(dailyPriceRecords []CompaniesPriceData, db *sql.DB) error {
 	valueStrings := make([]string, 0, len(dailyPriceRecords))
 	valueArgs := make([]interface{}, 0, len(dailyPriceRecords)*6)
-	fmt.Println(len(dailyPriceRecords))
 
 	/* Loop and Bulk Insert Records */
 	for k, v := range dailyPriceRecords {
@@ -108,13 +109,11 @@ func LoadPriceDataDB(dailyPriceRecords []CompaniesPriceData, db *sql.DB) {
 		" ON CONFLICT(COMPANY_ID, DATE_VAL) DO UPDATE SET CLOSE_VAL = excluded.CLOSE_VAL ", strings.Join(valueStrings, ","))
 
 	_, err := db.Exec(stmt, valueArgs...)
-
-	/* Ignoring data errors for now */
 	if err != nil {
-		fmt.Println(err.Error(), " Error while inserting Record : ")
+		return err
 	}
 
-	fmt.Println("Inserted")
+	return nil
 }
 
 /* Fetch All Price Data for a given company */
@@ -155,43 +154,44 @@ func FetchCompaniesLatestPriceDataDB(companyid string, db *sql.DB) CompaniesPric
 }
 
 /* Fetch Unique Company Ids */
-func FetchCompaniesDB(db *sql.DB) []Company {
+func FetchCompaniesDB(db *sql.DB) ([]Company, error) {
 	var companies []Company
 	records, err := db.Query("SELECT COMPANY_ID, LOAD_DATE FROM COMPANIES ")
 	if err != nil {
-		panic(err.Error())
+		return companies, err
 	}
 	defer records.Close()
 	for records.Next() {
 		var company Company
 		err := records.Scan(&company.CompanyId, &company.LoadDate)
 		if err != nil {
-			fmt.Println(err.Error(), "Error scanning record ")
+			return companies, err
 		}
 		companies = append(companies, company)
 	}
-	return companies
+	return companies, nil
 }
 
 func UpdateLoadDate(db *sql.DB, companyId string, loadDate time.Time) {
-	fmt.Println("comp id - ", companyId)
 	db.Exec("UPDATE COMPANIES SET LOAD_DATE = $1 WHERE COMPANY_ID = $2 ", loadDate, companyId)
 }
 
-func LoadCompaniesMasterListDB(companiesMasterList []Company, db *sql.DB) {
+func LoadCompaniesMasterListDB(companiesMasterList []Company, appUtil *util.AppUtil) error {
 
 	/* Loop and Insert Records */
 	for k, v := range companiesMasterList {
-		_, err := db.Exec("INSERT INTO COMPANIES(COMPANY_ID, COMPANY_NAME, LOAD_DATE) VALUES($1, $2, $3) "+
+		_, err := appUtil.Db.Exec("INSERT INTO COMPANIES(COMPANY_ID, COMPANY_NAME, LOAD_DATE) VALUES($1, $2, $3) "+
 			" ON CONFLICT(COMPANY_ID) DO NOTHING ",
 			v.CompanyId, v.CompanyName, v.LoadDate)
 
 		/* Ignoring data errors for now */
 		if err != nil {
-			fmt.Println(err.Error(), " Error while inserting Record : ", k)
+			appUtil.AppLogger.Println(err.Error(), " Error while inserting Record : ", k)
+			return err
 		}
 	}
-	fmt.Println("Inserted Companies Master List")
+	appUtil.AppLogger.Println("Inserted Companies Master List")
+	return nil
 }
 
 func AddUserDB(user User, db *sql.DB) error {
