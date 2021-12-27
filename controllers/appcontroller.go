@@ -114,7 +114,7 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 	} else if (r.URL.Path == constants.AppRouteNWPeriod) && (r.Method == http.MethodPost) {
 		/* Route to display NetWorth over a timeframe */
 		msg := processor.FetchNetWorthOverPeriods(payload, appC.AppUtil.Db)
-		json.NewEncoder(w).Encode(msg
+		json.NewEncoder(w).Encode(msg)
 	}
 }
 
