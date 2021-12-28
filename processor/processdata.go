@@ -63,7 +63,7 @@ func FetchAndUpdatePrices(db *sql.DB) string {
 
 	/* Update only during market hours */
 	hrs, _, _ := time.Now().Clock()
-	if hrs >= 10 && hrs <= 17 {
+	if hrs >= 10 && hrs <= 16 {
 
 		//Fetch Unique Company Details
 		companiesData, err := FetchCompanies(db)
@@ -390,58 +390,64 @@ func ReadCompaniesMasterCsv(filePath string) ([]data.Company, error) {
 }
 
 /* User Profiles */
-func AddUser(userInput []byte, db *sql.DB) string {
+func AddUser(userInput []byte) string {
 	var user data.User
 
 	json.Unmarshal(userInput, &user)
 	user.StartDate = time.Now()
 
-	err := data.AddUserDB(user, db)
+	err := data.AddUserDB(user, appUtil.Db)
 	if err != nil {
-		fmt.Println(err)
-		return "Error while adding new User"
+		appUtil.AppLogger.Println(err)
+		return constants.AppErrAddUser
 	}
 	/* Add to cache too */
 	usersCache[user.UserId] = user
-	return "Added successfully"
+	return constants.AppSuccessAddUser
 }
 
 func AddUserHoldings(userInput []byte, db *sql.DB) string {
-	fmt.Println("In Add User Holdings")
+	appUtil.AppLogger.Println("In AddUserHoldings")
 	var holdingsInput data.HoldingsInputJson
 
 	json.Unmarshal(userInput, &holdingsInput)
-	fmt.Println(holdingsInput)
 
-	isUserPresent := verifyUserId(holdingsInput.UserID, db)
+	isUserPresent, err := verifyUserId(holdingsInput.UserID, db)
+	if err != nil {
+		return constants.AppErrAddUserHoldings
+	}
+
 	if isUserPresent {
 		err := data.AddUserHoldingsDB(holdingsInput, db)
 		if err != nil {
-			fmt.Println(err)
-			return "Error while adding new User"
+			appUtil.AppLogger.Println(err)
+			return constants.AppErrAddUserHoldings
 		}
-		return "Added User Holdings successfully"
+		return constants.AppSuccessAddUserHoldings
 	}
-	return "Invalid User"
+	return constants.AppErrAddUserHoldingsInvalid
 }
 
-func verifyUserId(userid string, db *sql.DB) bool {
-	fmt.Println(userid)
-	/* Populate cahce first time */
+func verifyUserId(userid string, db *sql.DB) (bool, error) {
+	appUtil.AppLogger.Println("Verifying UserId - " + userid)
+	/* Populate cache first time */
 	if len(usersCache) == 0 {
-		users := data.FetchUniqueUsersDB(db)
+		users, err := data.FetchUniqueUsersDB(db)
+		if err != nil {
+			appUtil.AppLogger.Println(err)
+			return false, err
+		}
 		for _, user := range users {
 			usersCache[user.UserId] = user
 		}
-		fmt.Println("Loaded User Data In Cache")
+		appUtil.AppLogger.Println("Loaded User Data In Cache")
 	}
 
 	if _, isPresent := usersCache[userid]; isPresent {
-		fmt.Println("User data available in Cache")
-		return true
+		appUtil.AppLogger.Println("User data available in Cache")
+		return true, nil
 	}
-	return false
-
+	return false, nil
 }
 
 func GetUserHoldings(userInput []byte, db *sql.DB) data.HoldingsOutputJson {
@@ -449,13 +455,17 @@ func GetUserHoldings(userInput []byte, db *sql.DB) data.HoldingsOutputJson {
 
 	var user data.User
 	json.Unmarshal(userInput, &user)
-	fmt.Println(user)
+	appUtil.AppLogger.Println(user)
 
-	isUserPresent := verifyUserId(user.UserId, db)
+	isUserPresent, err := verifyUserId(user.UserId, db)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+	}
+
 	if isUserPresent {
 		holdings, err := data.GetUserHoldingsDB(user.UserId, db)
 		if err != nil {
-			fmt.Println(err)
+			appUtil.AppLogger.Println(err)
 		}
 		userHoldings = holdings
 	}
@@ -508,7 +518,11 @@ func AddModelPortfolio(userInput []byte, db *sql.DB) string {
 	json.Unmarshal(userInput, &modelPf)
 	fmt.Println(modelPf)
 
-	isUserPresent := verifyUserId(modelPf.UserID, db)
+	isUserPresent, err := verifyUserId(modelPf.UserID, db)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+	}
+
 	if isUserPresent {
 		err := data.AddModelPortfolioDB(modelPf, db)
 		if err != nil {
@@ -528,7 +542,11 @@ func GetModelPortfolio(userInput []byte, db *sql.DB) data.ModelPortfolio {
 	json.Unmarshal(userInput, &user)
 	fmt.Println(user)
 
-	isUserPresent := verifyUserId(user.UserId, db)
+	isUserPresent, err := verifyUserId(user.UserId, db)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+	}
+
 	if isUserPresent {
 		modelPf, err := data.GetModelPortfolioDB(user.UserId, db)
 		if err != nil {

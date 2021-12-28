@@ -43,5 +43,12 @@ const (
 	AppErrUserIdInvalid    = "E102: Please provide a valid UserId."
 
 	AppErrMasterList     = "E200: Error encountered while loading companies master list"
-	AppSuccessMasterList = "Master companies list loaded successfully"
+	AppSuccessMasterList = "Master companies list loaded successfully!!"
+
+	AppErrAddUser     = "E201: Error while adding new User"
+	AppSuccessAddUser = "User Added successfully!!"
+
+	AppErrAddUserHoldings        = "E202: Error while adding User Holdings"
+	AppErrAddUserHoldingsInvalid = "E203: Invalid UserId provided"
+	AppSuccessAddUserHoldings    = "User Holdings Added successfully!!"
 )

@@ -242,22 +242,22 @@ func AddUserHoldingsDB(userHoldings HoldingsInputJson, db *sql.DB) error {
 	return nil
 }
 
-func FetchUniqueUsersDB(db *sql.DB) []User {
+func FetchUniqueUsersDB(db *sql.DB) ([]User, error) {
 	var users []User
 	records, err := db.Query("SELECT USER_ID FROM USERS ")
 	if err != nil {
-		panic(err.Error())
+		return users, err
 	}
 	defer records.Close()
 	for records.Next() {
 		var user User
 		err := records.Scan(&user.UserId)
 		if err != nil {
-			fmt.Println(err.Error(), "Error scanning record ")
+			return users, err
 		}
 		users = append(users, user)
 	}
-	return users
+	return users, nil
 }
 
 func GetUserHoldingsDB(userid string, db *sql.DB) (HoldingsOutputJson, error) {

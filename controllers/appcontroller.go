@@ -42,6 +42,7 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					appC.AppUtil.AppLogger.Println(err)
 					msg = constants.AppErrJWTAuth
 				}
+				appC.AppUtil.AppLogger.Println("Generated JWT for user - " + userId)
 				json.NewEncoder(w).Encode(msg)
 
 			} else {
@@ -89,7 +90,7 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == constants.AppRouteAddUser) && (r.Method == http.MethodPost) {
 		/* Route to add new user into system */
-		msg := processor.AddUser(payload, appC.AppUtil.Db)
+		msg := processor.AddUser(payload)
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == constants.AppRouteAddUserHoldings) && (r.Method == http.MethodPost) {
 		/* Route to add user holdings */
