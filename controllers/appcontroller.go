@@ -94,20 +94,28 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == constants.AppRouteAddUserHoldings) && (r.Method == http.MethodPost) {
 		/* Route to add user holdings */
-		msg := processor.AddUserHoldings(payload, appC.AppUtil.Db)
+		msg := processor.AddUserHoldings(payload)
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == constants.AppRouteGetUserHoldings) && (r.Method == http.MethodPost) {
 		/* Route to fetch User Holdings */
-		msg := processor.GetUserHoldings(payload, appC.AppUtil.Db)
-		json.NewEncoder(w).Encode(msg)
+		resp, err := processor.GetUserHoldings(payload)
+		if err != nil {
+			json.NewEncoder(w).Encode(constants.AppErrGetUserHoldings)
+		} else {
+			json.NewEncoder(w).Encode(resp)
+		}
 	} else if (r.URL.Path == constants.AppRouteAddModelPf) && (r.Method == http.MethodPost) {
 		/* Route to Add Model Portfolio */
-		msg := processor.AddModelPortfolio(payload, appC.AppUtil.Db)
+		msg := processor.AddModelPortfolio(payload)
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == constants.AppRouteGetModelPf) && (r.Method == http.MethodPost) {
 		/* Route to fetch Model Portfolio */
-		msg := processor.GetModelPortfolio(payload, appC.AppUtil.Db)
-		json.NewEncoder(w).Encode(msg)
+		resp, err := processor.GetModelPortfolio(payload)
+		if err != nil {
+			json.NewEncoder(w).Encode(constants.AppErrGetModelPf)
+		} else {
+			json.NewEncoder(w).Encode(resp)
+		}
 	} else if (r.URL.Path == constants.AppRouteSyncPf) && (r.Method == http.MethodPost) {
 		/* Route to sync Model Pf with actual Pf */
 		msg := processor.GetPortfolioModelSync(payload, appC.AppUtil.Db)
@@ -121,5 +129,5 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 
 func handlePayloadError(err error, appC AppController, w http.ResponseWriter) {
 	appC.AppUtil.AppLogger.Println(err)
-	json.NewEncoder(w).Encode("Error in Paylod Data. Please check !!")
+	json.NewEncoder(w).Encode("Error in Payload Data. Please check !!")
 }

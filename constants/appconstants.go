@@ -51,4 +51,12 @@ const (
 	AppErrAddUserHoldings        = "E202: Error while adding User Holdings"
 	AppErrAddUserHoldingsInvalid = "E203: Invalid UserId provided"
 	AppSuccessAddUserHoldings    = "User Holdings Added successfully!!"
+
+	AppErrGetUserHoldings = "E204: Error while fetching User Holdings"
+
+	AppErrAddModelPf            = "E205: Error while adding Model Portfolio"
+	AppErrAddModelPfInvalidUser = "E206: Invalid UserId provided"
+	AppSuccessAddModelPf        = "Model Portfolio Added successfully!!"
+
+	AppErrGetModelPf = "E207: Error while fetching Model Portfolio"
 )

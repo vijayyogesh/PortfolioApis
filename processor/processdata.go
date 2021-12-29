@@ -33,32 +33,13 @@ func InitProcessor(appUtilInput *util.AppUtil) {
 	appUtil = appUtilInput
 }
 
+/* -------------------------------------- */
 /* ROUTER METHODS START */
 
-/* Fetch/Update Master Comapnies List */
-func FetchAndUpdateCompaniesMasterList() string {
-	appUtil.AppLogger.Println("Starting FetchAndUpdateCompaniesMasterList")
-
-	err := DownloadCompaniesMaster()
-	if err != nil {
-		appUtil.AppLogger.Println(err)
-		return constants.AppErrMasterList
-	}
-
-	errLoad := LoadCompaniesMaster()
-	if errLoad != nil {
-		appUtil.AppLogger.Println(errLoad)
-		return constants.AppErrMasterList
-	}
-
-	appUtil.AppLogger.Println("Completed FetchAndUpdateCompaniesMasterList")
-	return constants.AppSuccessMasterList
-}
-
-/* Master method that does the following
-1) Download data file based on TS
-2) Load into DB
-*/
+/* 1) Master method that does the following
+** Download data file based on TS
+** Load into DB
+ */
 func FetchAndUpdatePrices(db *sql.DB) string {
 
 	/* Update only during market hours */
@@ -80,7 +61,257 @@ func FetchAndUpdatePrices(db *sql.DB) string {
 	}
 }
 
+/* 2) Fetch/Update Master Companies List */
+func FetchAndUpdateCompaniesMasterList() string {
+	appUtil.AppLogger.Println("Starting FetchAndUpdateCompaniesMasterList")
+
+	err := DownloadCompaniesMaster()
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+		return constants.AppErrMasterList
+	}
+
+	errLoad := LoadCompaniesMaster()
+	if errLoad != nil {
+		appUtil.AppLogger.Println(errLoad)
+		return constants.AppErrMasterList
+	}
+
+	appUtil.AppLogger.Println("Completed FetchAndUpdateCompaniesMasterList")
+	return constants.AppSuccessMasterList
+}
+
+/* 3) Add User */
+func AddUser(userInput []byte) string {
+	var user data.User
+
+	json.Unmarshal(userInput, &user)
+	user.StartDate = time.Now()
+
+	err := data.AddUserDB(user, appUtil.Db)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+		return constants.AppErrAddUser
+	}
+	/* Add to cache too */
+	usersCache[user.UserId] = user
+	return constants.AppSuccessAddUser
+}
+
+/* 4) Add User Holdings */
+func AddUserHoldings(userInput []byte) string {
+	var holdingsInput data.HoldingsInputJson
+
+	json.Unmarshal(userInput, &holdingsInput)
+
+	isUserPresent, err := verifyUserId(holdingsInput.UserID, appUtil.Db)
+	if err != nil {
+		return constants.AppErrAddUserHoldings
+	}
+
+	if isUserPresent {
+		err := data.AddUserHoldingsDB(holdingsInput, appUtil.Db)
+		if err != nil {
+			appUtil.AppLogger.Println(err)
+			return constants.AppErrAddUserHoldings
+		}
+		return constants.AppSuccessAddUserHoldings
+	}
+	return constants.AppErrAddUserHoldingsInvalid
+}
+
+/* 5) Get User Holdings */
+func GetUserHoldings(userInput []byte) (data.HoldingsOutputJson, error) {
+	var userHoldings data.HoldingsOutputJson
+
+	var user data.User
+	json.Unmarshal(userInput, &user)
+	appUtil.AppLogger.Println(user)
+
+	isUserPresent, err := verifyUserId(user.UserId, appUtil.Db)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+		return userHoldings, err
+	}
+
+	if isUserPresent {
+		holdings, err := data.GetUserHoldingsDB(user.UserId, appUtil.Db)
+		if err != nil {
+			appUtil.AppLogger.Println(err)
+			return userHoldings, err
+		}
+		userHoldings = holdings
+	}
+	errCalc := calculateNetWorthAndAlloc(&userHoldings, appUtil.Db)
+	if errCalc != nil {
+		appUtil.AppLogger.Println(errCalc)
+		return userHoldings, errCalc
+	}
+
+	return userHoldings, nil
+}
+
+/* 6) Add model Pf with allocation and Reasonable price */
+func AddModelPortfolio(userInput []byte) string {
+	var modelPf data.ModelPortfolio
+
+	json.Unmarshal(userInput, &modelPf)
+
+	isUserPresent, err := verifyUserId(modelPf.UserID, appUtil.Db)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+		return constants.AppErrAddModelPfInvalidUser
+	}
+
+	if isUserPresent {
+		err := data.AddModelPortfolioDB(modelPf, appUtil.Db)
+		if err != nil {
+			appUtil.AppLogger.Println(err)
+			return constants.AppErrAddModelPf
+		}
+		return constants.AppSuccessAddModelPf
+	}
+	return constants.AppErrAddModelPfInvalidUser
+}
+
+/* 7) Fetch Model Portfolio for given User */
+func GetModelPortfolio(userInput []byte) (data.ModelPortfolio, error) {
+	var modelPortfolio data.ModelPortfolio
+
+	var user data.User
+	json.Unmarshal(userInput, &user)
+
+	isUserPresent, err := verifyUserId(user.UserId, appUtil.Db)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+		return modelPortfolio, err
+	}
+
+	if isUserPresent {
+		modelPf, err := data.GetModelPortfolioDB(user.UserId, appUtil.Db)
+		if err != nil {
+			appUtil.AppLogger.Println(err)
+			return modelPortfolio, err
+		}
+		modelPortfolio = modelPf
+	}
+
+	return modelPortfolio, nil
+}
+
+/* 8) Sync Model Portfolio with actual for given User */
+func GetPortfolioModelSync(userInput []byte, db *sql.DB) data.SyncedPortfolio {
+	var syncedPf data.SyncedPortfolio
+
+	var user data.User
+	json.Unmarshal(userInput, &user)
+
+	/* Get Target Amount */
+	targetAmount := data.GetTargetAmountDB(user.UserId, db)
+
+	/* Get Current Holdings */
+	holdingsOutputJson, err := GetUserHoldings(userInput)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+	}
+
+	/* Get Model Pf */
+	modelPf, errModelPf := GetModelPortfolio(userInput)
+	if errModelPf != nil {
+		appUtil.AppLogger.Println(errModelPf)
+	}
+
+	/* For each Model Pf holding
+	1) Check if exists in actual Pf (Tracked Holdings)
+	2) Calculate amount to be invested/sold
+	3) Check if current price is below reasonable price. */
+
+	/* Form Map to hold company id - key, transactions as Value*/
+	holdingsMap := make(map[string][]data.Holdings)
+	for _, holding := range holdingsOutputJson.Holdings {
+		companyid := holding.Companyid
+		holdingsMap[companyid] = append(holdingsMap[companyid], holding)
+	}
+
+	for _, security := range modelPf.Securities {
+
+		/* For each Model security, Calculate Amount to Be allocated based on expected allocation & target Amount */
+		var amountToBeAllocated float64
+		allocation, parseErr := strconv.ParseFloat(security.ExpectedAllocation, 64)
+		if parseErr != nil {
+			appUtil.AppLogger.Println("Error while parsing allocation ")
+		}
+		amountToBeAllocated = allocation / 100.0 * targetAmount
+
+		/* If already present, check if over/under invested */
+		holdings, ok := holdingsMap[security.Securityid]
+		if ok {
+			cumulativeAmount := CalculateCumulativeInvestedAmount(holdings)
+			amountToBeAllocated = (allocation / 100.0 * targetAmount) - cumulativeAmount
+		}
+
+		/* Form Structure stating how much to invest/prune in each model security */
+		var adjustedHolding data.AdjustedHolding
+		adjustedHolding.Securityid = security.Securityid
+		adjustedHolding.AdjustedAmount = fmt.Sprintf("%f", amountToBeAllocated)
+
+		/* Check if current price is below reasonable price */
+		LoadLatestCompaniesCompletePrice(security.Securityid, db)
+		latestPriceData := dailyPriceCacheLatest[security.Securityid]
+		secReasonablePrice, _ := strconv.ParseFloat(security.ReasonablePrice, 64)
+		if latestPriceData.CloseVal < secReasonablePrice {
+			adjustedHolding.BelowReasonablePrice = "Y"
+			percentBRP := (secReasonablePrice - latestPriceData.CloseVal) / secReasonablePrice * 100.0
+			adjustedHolding.PercentBelowReasonablePrice = fmt.Sprintf("%f", percentBRP)
+		} else {
+			adjustedHolding.BelowReasonablePrice = "N"
+		}
+
+		syncedPf.AdjustedHoldings = append(syncedPf.AdjustedHoldings, adjustedHolding)
+	}
+
+	return syncedPf
+}
+
+/* 9) Fetch NW Periods for given User */
+func FetchNetWorthOverPeriods(userInput []byte, db *sql.DB) map[string]float64 {
+	appUtil.AppLogger.Println("Starting FetchNetWorthOverPeriods")
+
+	var networthMap map[string]float64 = make(map[string]float64)
+
+	userHoldings, err := GetUserHoldings(userInput)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+	}
+	for _, holdings := range userHoldings.Holdings {
+		dailyPriceRecordsMap := FetchCompaniesCompletePrice(holdings.Companyid, db)
+		buyDate, err := time.Parse("2006-01-02T15:04:05Z", holdings.BuyDate)
+		if err != nil {
+			appUtil.AppLogger.Println(err)
+		} else {
+			qty, parseErr := strconv.ParseFloat(holdings.Quantity, 64)
+			if parseErr != nil {
+				appUtil.AppLogger.Println(err)
+			}
+
+			/* Loop all dates from Buy Date and calc NW */
+			for buyDate.Before(time.Now()) {
+				dateStr := buyDate.Format("2006-01-02")
+				dailyData, ok := dailyPriceRecordsMap[dateStr]
+				if ok {
+					networthMap[dateStr] = networthMap[dateStr] + (dailyData.CloseVal * qty)
+				}
+				buyDate = buyDate.AddDate(0, 0, 1)
+			}
+		}
+	}
+
+	appUtil.AppLogger.Println("Completed FetchNetWorthOverPeriods")
+	return networthMap
+}
+
 /* ROUTER METHODS END */
+/* -------------------------------------- */
 
 /* Fetch Unique Company Details */
 func FetchCompanies(db *sql.DB) ([]data.Company, error) {
@@ -274,10 +505,10 @@ func processDataErr(dataError error, k int, companyid string) {
 func FetchCompaniesCompletePrice(companyid string, db *sql.DB) map[string]data.CompaniesPriceData {
 	var dailyPriceRecordsMap map[string]data.CompaniesPriceData = make(map[string]data.CompaniesPriceData)
 	if dailyPriceCache[companyid] != nil {
-		fmt.Println("From Cache")
+		appUtil.AppLogger.Println("FetchCompaniesCompletePrice - From Cache")
 		dailyPriceRecordsMap = dailyPriceCache[companyid]
 	} else {
-		fmt.Println("From DB")
+		appUtil.AppLogger.Println("FetchCompaniesCompletePrice - From DB")
 		dailyPriceRecords := data.FetchCompaniesCompletePriceDataDB(companyid, db)
 		for _, priceData := range dailyPriceRecords {
 			dateStr := priceData.DateVal.Format("2006-01-02")
@@ -288,18 +519,20 @@ func FetchCompaniesCompletePrice(companyid string, db *sql.DB) map[string]data.C
 	return dailyPriceRecordsMap
 }
 
-/* Fetch Latest Price Data from DB and use cache for subsequent requests */
-func FetchLatestCompaniesCompletePrice(companyid string, db *sql.DB) {
-	var dailyPriceRecordsLatest data.CompaniesPriceData
+/* Load Latest Price Data from DB and use cache for subsequent requests */
+func LoadLatestCompaniesCompletePrice(companyid string, db *sql.DB) error {
 	if _, ok := dailyPriceCacheLatest[companyid]; ok {
-		fmt.Println("From Cache")
-		dailyPriceRecordsLatest = dailyPriceCacheLatest[companyid]
+		appUtil.AppLogger.Println("LoadLatestCompaniesCompletePrice - Price data already in Cache")
 	} else {
-		fmt.Println("From DB")
-		dailyPriceRecordsLatest = data.FetchCompaniesLatestPriceDataDB(companyid, db)
+		appUtil.AppLogger.Println("LoadLatestCompaniesCompletePrice - Loading Price Data From DB to Cache")
+		dailyPriceRecordsLatest, err := data.FetchCompaniesLatestPriceDataDB(companyid, db)
+		if err != nil {
+			appUtil.AppLogger.Println(err)
+			return err
+		}
 		dailyPriceCacheLatest[companyid] = dailyPriceRecordsLatest
 	}
-	fmt.Println(dailyPriceRecordsLatest)
+	return nil
 }
 
 /* Download data file from online */
@@ -389,45 +622,6 @@ func ReadCompaniesMasterCsv(filePath string) ([]data.Company, error) {
 
 }
 
-/* User Profiles */
-func AddUser(userInput []byte) string {
-	var user data.User
-
-	json.Unmarshal(userInput, &user)
-	user.StartDate = time.Now()
-
-	err := data.AddUserDB(user, appUtil.Db)
-	if err != nil {
-		appUtil.AppLogger.Println(err)
-		return constants.AppErrAddUser
-	}
-	/* Add to cache too */
-	usersCache[user.UserId] = user
-	return constants.AppSuccessAddUser
-}
-
-func AddUserHoldings(userInput []byte, db *sql.DB) string {
-	appUtil.AppLogger.Println("In AddUserHoldings")
-	var holdingsInput data.HoldingsInputJson
-
-	json.Unmarshal(userInput, &holdingsInput)
-
-	isUserPresent, err := verifyUserId(holdingsInput.UserID, db)
-	if err != nil {
-		return constants.AppErrAddUserHoldings
-	}
-
-	if isUserPresent {
-		err := data.AddUserHoldingsDB(holdingsInput, db)
-		if err != nil {
-			appUtil.AppLogger.Println(err)
-			return constants.AppErrAddUserHoldings
-		}
-		return constants.AppSuccessAddUserHoldings
-	}
-	return constants.AppErrAddUserHoldingsInvalid
-}
-
 func verifyUserId(userid string, db *sql.DB) (bool, error) {
 	appUtil.AppLogger.Println("Verifying UserId - " + userid)
 	/* Populate cache first time */
@@ -450,41 +644,21 @@ func verifyUserId(userid string, db *sql.DB) (bool, error) {
 	return false, nil
 }
 
-func GetUserHoldings(userInput []byte, db *sql.DB) data.HoldingsOutputJson {
-	var userHoldings data.HoldingsOutputJson
-
-	var user data.User
-	json.Unmarshal(userInput, &user)
-	appUtil.AppLogger.Println(user)
-
-	isUserPresent, err := verifyUserId(user.UserId, db)
-	if err != nil {
-		appUtil.AppLogger.Println(err)
-	}
-
-	if isUserPresent {
-		holdings, err := data.GetUserHoldingsDB(user.UserId, db)
-		if err != nil {
-			appUtil.AppLogger.Println(err)
-		}
-		userHoldings = holdings
-	}
-	calculateNetWorthAndAlloc(&userHoldings, db)
-
-	return userHoldings
-}
-
-func calculateNetWorthAndAlloc(userHoldings *data.HoldingsOutputJson, db *sql.DB) {
+func calculateNetWorthAndAlloc(userHoldings *data.HoldingsOutputJson, db *sql.DB) error {
 	var NW float64
 	var eqTotal float64
 	var debtTotal float64
 
 	for _, holding := range userHoldings.Holdings {
-		FetchLatestCompaniesCompletePrice(holding.Companyid, db)
+		err := LoadLatestCompaniesCompletePrice(holding.Companyid, db)
+		if err != nil {
+			return err
+		}
 		latestPriceData := dailyPriceCacheLatest[holding.Companyid]
 		qty, errQty := strconv.ParseFloat(holding.Quantity, 64)
 		if errQty != nil {
-			fmt.Println(errQty)
+			appUtil.AppLogger.Println(errQty)
+			return errQty
 		}
 
 		NW = NW + (latestPriceData.CloseVal * qty)
@@ -494,7 +668,8 @@ func calculateNetWorthAndAlloc(userHoldings *data.HoldingsOutputJson, db *sql.DB
 	for _, holdingNT := range userHoldings.HoldingsNT {
 		cv, errCV := strconv.ParseFloat(holdingNT.CurrentValue, 64)
 		if errCV != nil {
-			fmt.Println(errCV)
+			appUtil.AppLogger.Println(errCV)
+			return errCV
 		}
 		NW = NW + cv
 		debtTotal = debtTotal + cv
@@ -508,124 +683,7 @@ func calculateNetWorthAndAlloc(userHoldings *data.HoldingsOutputJson, db *sql.DB
 	userHoldings.Allocation.Debt = debtPercent
 
 	userHoldings.Networth = fmt.Sprintf("%f", NW)
-}
-
-/* Add model Pf with allocation and Reasonable price */
-func AddModelPortfolio(userInput []byte, db *sql.DB) string {
-	fmt.Println("In AddModelPortfolio")
-	var modelPf data.ModelPortfolio
-
-	json.Unmarshal(userInput, &modelPf)
-	fmt.Println(modelPf)
-
-	isUserPresent, err := verifyUserId(modelPf.UserID, db)
-	if err != nil {
-		appUtil.AppLogger.Println(err)
-	}
-
-	if isUserPresent {
-		err := data.AddModelPortfolioDB(modelPf, db)
-		if err != nil {
-			fmt.Println(err)
-			return "Error while createing Model Portfolio"
-		}
-		return "Added Model Portfolio successfully"
-	}
-	return "Invalid User"
-}
-
-/* Fetch Model Pf for given User */
-func GetModelPortfolio(userInput []byte, db *sql.DB) data.ModelPortfolio {
-	var modelPortfolio data.ModelPortfolio
-
-	var user data.User
-	json.Unmarshal(userInput, &user)
-	fmt.Println(user)
-
-	isUserPresent, err := verifyUserId(user.UserId, db)
-	if err != nil {
-		appUtil.AppLogger.Println(err)
-	}
-
-	if isUserPresent {
-		modelPf, err := data.GetModelPortfolioDB(user.UserId, db)
-		if err != nil {
-			fmt.Println(err)
-		}
-		modelPortfolio = modelPf
-	}
-
-	return modelPortfolio
-}
-
-func GetPortfolioModelSync(userInput []byte, db *sql.DB) data.SyncedPortfolio {
-	var syncedPf data.SyncedPortfolio
-
-	var user data.User
-	json.Unmarshal(userInput, &user)
-
-	/* Get Target Amount */
-	targetAmount := data.GetTargetAmountDB(user.UserId, db)
-	fmt.Println(targetAmount)
-
-	/* Get Current Holdings */
-	holdingsOutputJson := GetUserHoldings(userInput, db)
-	fmt.Println(holdingsOutputJson)
-
-	/* Get Model Pf */
-	modelPf := GetModelPortfolio(userInput, db)
-	fmt.Println(modelPf)
-
-	/* For each Model Pf holding
-	1) Check if exists in actual Pf (Tracked Holdings)
-	2) Calculate amount to be invested/sold
-	3) Check if current price is below reasonable price. */
-
-	/* Form Map to hold company id - key, transactions as Value*/
-	holdingsMap := make(map[string][]data.Holdings)
-	for _, holding := range holdingsOutputJson.Holdings {
-		companyid := holding.Companyid
-		holdingsMap[companyid] = append(holdingsMap[companyid], holding)
-	}
-
-	for _, security := range modelPf.Securities {
-
-		/* For each Model security, Calculate Amount to Be allocated based on expected allocation & target Amount */
-		var amountToBeAllocated float64
-		allocation, parseErr := strconv.ParseFloat(security.ExpectedAllocation, 64)
-		if parseErr != nil {
-			fmt.Println("Error while parsing allocation ")
-		}
-		amountToBeAllocated = allocation / 100.0 * targetAmount
-
-		/* If already present, check if over/under invested */
-		holdings, ok := holdingsMap[security.Securityid]
-		if ok {
-			cumulativeAmount := CalculateCumulativeInvestedAmount(holdings)
-			amountToBeAllocated = (allocation / 100.0 * targetAmount) - cumulativeAmount
-		}
-
-		/* Form Structure stating how much to invest/prune in each model security */
-		var adjustedHolding data.AdjustedHolding
-		adjustedHolding.Securityid = security.Securityid
-		adjustedHolding.AdjustedAmount = fmt.Sprintf("%f", amountToBeAllocated)
-
-		/* Check if current price is below reasonable price */
-		FetchLatestCompaniesCompletePrice(security.Securityid, db)
-		latestPriceData := dailyPriceCacheLatest[security.Securityid]
-		secReasonablePrice, _ := strconv.ParseFloat(security.ReasonablePrice, 64)
-		if latestPriceData.CloseVal < secReasonablePrice {
-			adjustedHolding.BelowReasonablePrice = "Y"
-			percentBRP := (secReasonablePrice - latestPriceData.CloseVal) / secReasonablePrice * 100.0
-			adjustedHolding.PercentBelowReasonablePrice = fmt.Sprintf("%f", percentBRP)
-		} else {
-			adjustedHolding.BelowReasonablePrice = "N"
-		}
-
-		syncedPf.AdjustedHoldings = append(syncedPf.AdjustedHoldings, adjustedHolding)
-	}
-
-	return syncedPf
+	return nil
 }
 
 func CalculateCumulativeInvestedAmount(holdings []data.Holdings) float64 {
@@ -636,47 +694,4 @@ func CalculateCumulativeInvestedAmount(holdings []data.Holdings) float64 {
 		cumulativeAmount = cumulativeAmount + (buyPrice * qty)
 	}
 	return cumulativeAmount
-}
-
-func TestCron() {
-	fmt.Println("In Test Cron")
-}
-
-func FetchNetWorthOverPeriods(userInput []byte, db *sql.DB) map[string]float64 {
-	fmt.Println("In FetchNetWorthOverPeriods start")
-
-	//var networthOverPeriod data.NetworthOverPeriod
-	var networthMap map[string]float64 = make(map[string]float64)
-
-	userHoldings := GetUserHoldings(userInput, db)
-	for _, holdings := range userHoldings.Holdings {
-		dailyPriceRecordsMap := FetchCompaniesCompletePrice(holdings.Companyid, db)
-		fmt.Println(dailyPriceRecordsMap)
-
-		fmt.Println(holdings.BuyDate)
-		buyDate, err := time.Parse("2006-01-02T15:04:05Z", holdings.BuyDate)
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			qty, parseErr := strconv.ParseFloat(holdings.Quantity, 64)
-			if parseErr != nil {
-				fmt.Println(err)
-			}
-
-			/* Loop all dates from Buy Date and calc NW */
-			for buyDate.Before(time.Now()) {
-				fmt.Println(buyDate)
-				dateStr := buyDate.Format("2006-01-02")
-				dailyData, ok := dailyPriceRecordsMap[dateStr]
-				if ok {
-					networthMap[dateStr] = networthMap[dateStr] + (dailyData.CloseVal * qty)
-				}
-				buyDate = buyDate.AddDate(0, 0, 1)
-			}
-		}
-	}
-
-	fmt.Println(networthMap)
-	fmt.Println("In FetchNetWorthOverPeriods end")
-	return networthMap
 }
