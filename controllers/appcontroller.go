@@ -76,15 +76,18 @@ func getUserId(reqBody []byte, appC AppController) (string, error) {
 /* Process App routes post JWT authentication */
 func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppController, payload []byte) {
 
+	processor.InitProcessor(appC.AppUtil)
+
 	/* Commented as updatePrices is taken care by Cron Job */
 	/*if (r.URL.Path == constants.AppRouteUpdatePrices) && (r.Method == http.MethodPost) {
 		msg := processor.FetchAndUpdatePrices(appC.AppUtil.Db)
 		json.NewEncoder(w).Encode(msg)
 	} */
 
-	processor.InitProcessor(appC.AppUtil)
-
-	if (r.URL.Path == constants.AppRouteUpdateMasterList) && (r.Method == http.MethodPost) {
+	if (r.URL.Path == constants.AppRouteUpdateSelectedCompanies) && (r.Method == http.MethodPost) {
+		msg := processor.UpdateSelectedCompanies(payload)
+		json.NewEncoder(w).Encode(msg)
+	} else if (r.URL.Path == constants.AppRouteUpdateMasterList) && (r.Method == http.MethodPost) {
 		/* Route to update/refresh master list of companies */
 		msg := processor.FetchAndUpdateCompaniesMasterList()
 		json.NewEncoder(w).Encode(msg)
@@ -118,12 +121,20 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 		}
 	} else if (r.URL.Path == constants.AppRouteSyncPf) && (r.Method == http.MethodPost) {
 		/* Route to sync Model Pf with actual Pf */
-		msg := processor.GetPortfolioModelSync(payload, appC.AppUtil.Db)
-		json.NewEncoder(w).Encode(msg)
+		resp, err := processor.GetPortfolioModelSync(payload)
+		if err != nil {
+			json.NewEncoder(w).Encode(constants.AppErrGetModelPfSync)
+		} else {
+			json.NewEncoder(w).Encode(resp)
+		}
 	} else if (r.URL.Path == constants.AppRouteNWPeriod) && (r.Method == http.MethodPost) {
 		/* Route to display NetWorth over a timeframe */
-		msg := processor.FetchNetWorthOverPeriods(payload, appC.AppUtil.Db)
-		json.NewEncoder(w).Encode(msg)
+		resp, err := processor.FetchNetWorthOverPeriods(payload)
+		if err != nil {
+			json.NewEncoder(w).Encode(constants.AppErrFetchNWOverPeriods)
+		} else {
+			json.NewEncoder(w).Encode(resp)
+		}
 	}
 }
 

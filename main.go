@@ -36,6 +36,7 @@ func main() {
 	http.Handle(constants.AppRouteGetModelPf, *appC)
 	http.Handle(constants.AppRouteSyncPf, *appC)
 	http.Handle(constants.AppRouteNWPeriod, *appC)
+	http.Handle(constants.AppRouteUpdateSelectedCompanies, *appC)
 
 	appUtil.AppLogger.Println("----- STARTED PORTFOLIO APIS -----")
 

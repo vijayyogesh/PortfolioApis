@@ -96,6 +96,11 @@ type NetworthOnADate struct {
 	Networth string `json:"networth"`
 }
 
+type CompaniesInput struct {
+	UserID  string    `json:"userId"`
+	Company []Company `json:"Company"`
+}
+
 func LoadPriceDataDB(dailyPriceRecords []CompaniesPriceData, db *sql.DB) error {
 	valueStrings := make([]string, 0, len(dailyPriceRecords))
 	valueArgs := make([]interface{}, 0, len(dailyPriceRecords)*6)
@@ -268,7 +273,6 @@ func GetUserHoldingsDB(userid string, db *sql.DB) (HoldingsOutputJson, error) {
 	records, err := db.Query("SELECT HOLDINGS.USER_ID, HOLDINGS.COMPANY_ID, HOLDINGS.QUANTITY, HOLDINGS.BUY_DATE, HOLDINGS.BUY_PRICE FROM USERS USERS, USER_HOLDINGS HOLDINGS "+
 		"WHERE USERS.USER_ID = HOLDINGS.USER_ID AND USERS.USER_ID = $1", userid)
 	if err != nil {
-		fmt.Println(err.Error(), "Error reading record ")
 		return holdingsOutputJson, err
 	}
 	defer records.Close()
@@ -276,9 +280,9 @@ func GetUserHoldingsDB(userid string, db *sql.DB) (HoldingsOutputJson, error) {
 	for records.Next() {
 		var holdings Holdings
 		var userid string
-		records.Scan(&userid, &holdings.Companyid, &holdings.Quantity, &holdings.BuyDate, &holdings.BuyPrice)
+		err := records.Scan(&userid, &holdings.Companyid, &holdings.Quantity, &holdings.BuyDate, &holdings.BuyPrice)
 		if err != nil {
-			fmt.Println(err.Error(), "Error scanning record ")
+			return holdingsOutputJson, err
 		}
 		holdingsOutputJson.Holdings = append(holdingsOutputJson.Holdings, holdings)
 	}
@@ -287,17 +291,16 @@ func GetUserHoldingsDB(userid string, db *sql.DB) (HoldingsOutputJson, error) {
 	recordsNT, errNT := db.Query("SELECT HOLDINGS_NT.USER_ID, HOLDINGS_NT.SECURITY_ID, HOLDINGS_NT.BUY_VALUE, HOLDINGS_NT.BUY_DATE, HOLDINGS_NT.CURRENT_VALUE FROM USERS USERS, USER_HOLDINGS_NT HOLDINGS_NT "+
 		"WHERE USERS.USER_ID = HOLDINGS_NT.USER_ID AND USERS.USER_ID = $1", userid)
 	if errNT != nil {
-		fmt.Println(err.Error(), "Error reading record ")
-		return holdingsOutputJson, err
+		return holdingsOutputJson, errNT
 	}
 	defer recordsNT.Close()
 
 	for recordsNT.Next() {
 		var holdingsNT HoldingsNonTracked
 		var userid string
-		recordsNT.Scan(&userid, &holdingsNT.SecurityId, &holdingsNT.BuyValue, &holdingsNT.BuyDate, &holdingsNT.CurrentValue)
+		err := recordsNT.Scan(&userid, &holdingsNT.SecurityId, &holdingsNT.BuyValue, &holdingsNT.BuyDate, &holdingsNT.CurrentValue)
 		if err != nil {
-			fmt.Println(err.Error(), "Error scanning record ")
+			return holdingsOutputJson, err
 		}
 		holdingsOutputJson.HoldingsNT = append(holdingsOutputJson.HoldingsNT, holdingsNT)
 	}
@@ -335,7 +338,6 @@ func GetModelPortfolioDB(userid string, db *sql.DB) (ModelPortfolio, error) {
 	records, err := db.Query("SELECT SECURITY_ID, REASONABLE_PRICE, EXP_ALLOC FROM USER_MODEL_PF  "+
 		"WHERE USER_ID = $1", userid)
 	if err != nil {
-		fmt.Println(err.Error(), "Error reading record ")
 		return modelPf, err
 	}
 	defer records.Close()
@@ -344,7 +346,6 @@ func GetModelPortfolioDB(userid string, db *sql.DB) (ModelPortfolio, error) {
 		var security Securities
 		err := records.Scan(&security.Securityid, &security.ReasonablePrice, &security.ExpectedAllocation)
 		if err != nil {
-			fmt.Println(err.Error(), "Error scanning record ")
 			return modelPf, err
 		}
 		modelPf.Securities = append(modelPf.Securities, security)
@@ -353,16 +354,18 @@ func GetModelPortfolioDB(userid string, db *sql.DB) (ModelPortfolio, error) {
 	return modelPf, nil
 }
 
-func GetTargetAmountDB(userid string, db *sql.DB) float64 {
+func GetTargetAmountDB(userid string, db *sql.DB) (float64, error) {
 	var targetAmount float64
 	records, err := db.Query("SELECT TARGET_AMOUNT FROM USERS WHERE USER_ID = $1 ", userid)
 	if err != nil {
-		fmt.Println(err.Error(), "Error getting targeted Amount from DB ")
-		return targetAmount
+		return targetAmount, err
 	}
 	defer records.Close()
 	for records.Next() {
-		records.Scan(&targetAmount)
+		errRead := records.Scan(&targetAmount)
+		if errRead != nil {
+			return targetAmount, errRead
+		}
 	}
-	return targetAmount
+	return targetAmount, nil
 }

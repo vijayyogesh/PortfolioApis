@@ -61,6 +61,24 @@ func FetchAndUpdatePrices(db *sql.DB) string {
 	}
 }
 
+/* 1b) Update Prices for Company */
+func UpdateSelectedCompanies(userInput []byte) string {
+	var CompaniesInput data.CompaniesInput
+	err := json.Unmarshal(userInput, &CompaniesInput)
+
+	fmt.Println(CompaniesInput)
+	if err == nil {
+		//Download data file
+		DownloadDataAsync(CompaniesInput.Company)
+
+		//Read Data From File & Write into DB asynchronously
+		LoadPriceData(appUtil.Db)
+		return constants.AppSuccessUpdateSelectedCompaniesPrice
+	} else {
+		return constants.AppErrUpdateSelectedCompaniesPrice
+	}
+}
+
 /* 2) Fetch/Update Master Companies List */
 func FetchAndUpdateCompaniesMasterList() string {
 	appUtil.AppLogger.Println("Starting FetchAndUpdateCompaniesMasterList")
@@ -200,25 +218,31 @@ func GetModelPortfolio(userInput []byte) (data.ModelPortfolio, error) {
 }
 
 /* 8) Sync Model Portfolio with actual for given User */
-func GetPortfolioModelSync(userInput []byte, db *sql.DB) data.SyncedPortfolio {
+func GetPortfolioModelSync(userInput []byte) (data.SyncedPortfolio, error) {
 	var syncedPf data.SyncedPortfolio
 
 	var user data.User
 	json.Unmarshal(userInput, &user)
 
 	/* Get Target Amount */
-	targetAmount := data.GetTargetAmountDB(user.UserId, db)
+	targetAmount, err := data.GetTargetAmountDB(user.UserId, appUtil.Db)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+		return syncedPf, err
+	}
 
 	/* Get Current Holdings */
 	holdingsOutputJson, err := GetUserHoldings(userInput)
 	if err != nil {
 		appUtil.AppLogger.Println(err)
+		return syncedPf, err
 	}
 
 	/* Get Model Pf */
 	modelPf, errModelPf := GetModelPortfolio(userInput)
 	if errModelPf != nil {
 		appUtil.AppLogger.Println(errModelPf)
+		return syncedPf, errModelPf
 	}
 
 	/* For each Model Pf holding
@@ -239,7 +263,8 @@ func GetPortfolioModelSync(userInput []byte, db *sql.DB) data.SyncedPortfolio {
 		var amountToBeAllocated float64
 		allocation, parseErr := strconv.ParseFloat(security.ExpectedAllocation, 64)
 		if parseErr != nil {
-			appUtil.AppLogger.Println("Error while parsing allocation ")
+			appUtil.AppLogger.Println(parseErr)
+			return syncedPf, parseErr
 		}
 		amountToBeAllocated = allocation / 100.0 * targetAmount
 
@@ -256,7 +281,7 @@ func GetPortfolioModelSync(userInput []byte, db *sql.DB) data.SyncedPortfolio {
 		adjustedHolding.AdjustedAmount = fmt.Sprintf("%f", amountToBeAllocated)
 
 		/* Check if current price is below reasonable price */
-		LoadLatestCompaniesCompletePrice(security.Securityid, db)
+		LoadLatestCompaniesCompletePrice(security.Securityid, appUtil.Db)
 		latestPriceData := dailyPriceCacheLatest[security.Securityid]
 		secReasonablePrice, _ := strconv.ParseFloat(security.ReasonablePrice, 64)
 		if latestPriceData.CloseVal < secReasonablePrice {
@@ -270,11 +295,11 @@ func GetPortfolioModelSync(userInput []byte, db *sql.DB) data.SyncedPortfolio {
 		syncedPf.AdjustedHoldings = append(syncedPf.AdjustedHoldings, adjustedHolding)
 	}
 
-	return syncedPf
+	return syncedPf, nil
 }
 
 /* 9) Fetch NW Periods for given User */
-func FetchNetWorthOverPeriods(userInput []byte, db *sql.DB) map[string]float64 {
+func FetchNetWorthOverPeriods(userInput []byte) (map[string]float64, error) {
 	appUtil.AppLogger.Println("Starting FetchNetWorthOverPeriods")
 
 	var networthMap map[string]float64 = make(map[string]float64)
@@ -282,16 +307,19 @@ func FetchNetWorthOverPeriods(userInput []byte, db *sql.DB) map[string]float64 {
 	userHoldings, err := GetUserHoldings(userInput)
 	if err != nil {
 		appUtil.AppLogger.Println(err)
+		return networthMap, err
 	}
 	for _, holdings := range userHoldings.Holdings {
-		dailyPriceRecordsMap := FetchCompaniesCompletePrice(holdings.Companyid, db)
+		dailyPriceRecordsMap := FetchCompaniesCompletePrice(holdings.Companyid, appUtil.Db)
 		buyDate, err := time.Parse("2006-01-02T15:04:05Z", holdings.BuyDate)
 		if err != nil {
 			appUtil.AppLogger.Println(err)
+			return networthMap, err
 		} else {
 			qty, parseErr := strconv.ParseFloat(holdings.Quantity, 64)
 			if parseErr != nil {
-				appUtil.AppLogger.Println(err)
+				appUtil.AppLogger.Println(parseErr)
+				return networthMap, parseErr
 			}
 
 			/* Loop all dates from Buy Date and calc NW */
@@ -307,7 +335,7 @@ func FetchNetWorthOverPeriods(userInput []byte, db *sql.DB) map[string]float64 {
 	}
 
 	appUtil.AppLogger.Println("Completed FetchNetWorthOverPeriods")
-	return networthMap
+	return networthMap, nil
 }
 
 /* ROUTER METHODS END */

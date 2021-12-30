@@ -15,16 +15,17 @@ const (
 	AppEnvPath string = "."
 
 	/* EndPoint/Route Paths */
-	AppRouteLogin            string = "/PortfolioApis/login"
-	AppRouteUpdatePrices     string = "/PortfolioApis/updateprices"
-	AppRouteUpdateMasterList string = "/PortfolioApis/updatemasterlist"
-	AppRouteAddUser          string = "/PortfolioApis/adduser"
-	AppRouteAddUserHoldings  string = "/PortfolioApis/adduserholdings"
-	AppRouteGetUserHoldings  string = "/PortfolioApis/getuserholdings"
-	AppRouteAddModelPf       string = "/PortfolioApis/addmodelportfolio"
-	AppRouteGetModelPf       string = "/PortfolioApis/getmodelportfolio"
-	AppRouteSyncPf           string = "/PortfolioApis/syncportfolio"
-	AppRouteNWPeriod         string = "/PortfolioApis/fetchnetworthoverperiod"
+	AppRouteLogin                   string = "/PortfolioApis/login"
+	AppRouteUpdatePrices            string = "/PortfolioApis/updateprices"
+	AppRouteUpdateMasterList        string = "/PortfolioApis/updatemasterlist"
+	AppRouteAddUser                 string = "/PortfolioApis/adduser"
+	AppRouteAddUserHoldings         string = "/PortfolioApis/adduserholdings"
+	AppRouteGetUserHoldings         string = "/PortfolioApis/getuserholdings"
+	AppRouteAddModelPf              string = "/PortfolioApis/addmodelportfolio"
+	AppRouteGetModelPf              string = "/PortfolioApis/getmodelportfolio"
+	AppRouteSyncPf                  string = "/PortfolioApis/syncportfolio"
+	AppRouteNWPeriod                string = "/PortfolioApis/fetchnetworthoverperiod"
+	AppRouteUpdateSelectedCompanies string = "/PortfolioApis/updateselectedcompanies"
 
 	/* Auth/JWT */
 	AppJWTAudience = "ApiUsers"
@@ -59,4 +60,10 @@ const (
 	AppSuccessAddModelPf        = "Model Portfolio Added successfully!!"
 
 	AppErrGetModelPf = "E207: Error while fetching Model Portfolio"
+
+	AppErrGetModelPfSync     = "E208: Error while syncing Model Portfolio"
+	AppErrFetchNWOverPeriods = "E209: Error while calculating Networth over periods"
+
+	AppErrUpdateSelectedCompaniesPrice     = "E210: Error while Updating Prices for selected companies"
+	AppSuccessUpdateSelectedCompaniesPrice = "Prices updated successfully for selected companies !!"
 )
