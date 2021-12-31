@@ -66,7 +66,6 @@ func UpdateSelectedCompanies(userInput []byte) string {
 	var CompaniesInput data.CompaniesInput
 	err := json.Unmarshal(userInput, &CompaniesInput)
 
-	fmt.Println(CompaniesInput)
 	if err == nil {
 		//Download data file
 		DownloadDataAsync(CompaniesInput.Company)
@@ -284,10 +283,10 @@ func GetPortfolioModelSync(userInput []byte) (data.SyncedPortfolio, error) {
 		LoadLatestCompaniesCompletePrice(security.Securityid, appUtil.Db)
 		latestPriceData := dailyPriceCacheLatest[security.Securityid]
 		secReasonablePrice, _ := strconv.ParseFloat(security.ReasonablePrice, 64)
+		percentBRP := (secReasonablePrice - latestPriceData.CloseVal) / secReasonablePrice * 100.0
+		adjustedHolding.PercentBelowReasonablePrice = fmt.Sprintf("%f", percentBRP)
 		if latestPriceData.CloseVal < secReasonablePrice {
 			adjustedHolding.BelowReasonablePrice = "Y"
-			percentBRP := (secReasonablePrice - latestPriceData.CloseVal) / secReasonablePrice * 100.0
-			adjustedHolding.PercentBelowReasonablePrice = fmt.Sprintf("%f", percentBRP)
 		} else {
 			adjustedHolding.BelowReasonablePrice = "N"
 		}
