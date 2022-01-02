@@ -44,7 +44,7 @@ func FetchAndUpdatePrices(db *sql.DB) string {
 
 	/* Update only during market hours */
 	hrs, _, _ := time.Now().Clock()
-	if hrs >= 10 && hrs <= 16 {
+	if (hrs >= 8 && hrs <= 16) && (time.Now().Weekday() != time.Saturday) && (time.Now().Weekday() != time.Sunday) {
 
 		//Fetch Unique Company Details
 		companiesData, err := FetchCompanies(db)
