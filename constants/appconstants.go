@@ -15,6 +15,7 @@ const (
 	AppEnvPath string = "."
 
 	/* EndPoint/Route Paths */
+	AppRouteRegister                string = "/PortfolioApis/register"
 	AppRouteLogin                   string = "/PortfolioApis/login"
 	AppRouteUpdatePrices            string = "/PortfolioApis/updateprices"
 	AppRouteUpdateMasterList        string = "/PortfolioApis/updatemasterlist"
@@ -39,9 +40,11 @@ const (
 	AppDataPricesUrlSuffix  = ".NS?period1=%s&period2=%s&interval=1d&events=history&includeAdjustedClose=true"
 
 	/* Error Codes */
-	AppErrUserUnauthorized = "E100: User is Unauthorized!!. Please check Token value."
-	AppErrJWTAuth          = "E101: Error encountered while authenticating user"
-	AppErrUserIdInvalid    = "E102: Please provide a valid UserId."
+	AppErrUserUnauthorized  = "E100: User is Unauthorized!!. Please check Token value."
+	AppErrJWTAuth           = "E101: Error encountered while authenticating user"
+	AppErrUserIdInvalid     = "E102: Please provide a valid UserId."
+	AppErrInvalidPassword   = "E103: Please provide a valid Password."
+	AppErrIncorrectPassword = "E104: Incorrect credentials provided."
 
 	AppErrMasterList     = "E200: Error encountered while loading companies master list"
 	AppSuccessMasterList = "Master companies list loaded successfully!!"

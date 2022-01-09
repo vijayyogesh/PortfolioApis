@@ -26,6 +26,7 @@ type Config struct {
 }
 
 func main() {
+	http.Handle(constants.AppRouteRegister, *appC)
 	http.Handle(constants.AppRouteLogin, *appC)
 	http.Handle(constants.AppRouteUpdateMasterList, *appC)
 	http.Handle(constants.AppRouteUpdatePrices, *appC)

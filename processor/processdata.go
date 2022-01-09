@@ -99,10 +99,7 @@ func FetchAndUpdateCompaniesMasterList() string {
 }
 
 /* 3) Add User */
-func AddUser(userInput []byte) string {
-	var user data.User
-
-	json.Unmarshal(userInput, &user)
+func AddUser(user data.User) string {
 	user.StartDate = time.Now()
 
 	err := data.AddUserDB(user, appUtil.Db)
@@ -721,4 +718,16 @@ func CalculateCumulativeInvestedAmount(holdings []data.Holdings) float64 {
 		cumulativeAmount = cumulativeAmount + (buyPrice * qty)
 	}
 	return cumulativeAmount
+}
+
+/* Compare userInput password with DB */
+func IsValidPassword(user data.User) bool {
+	password, err := data.GetPassword(user.UserId, appUtil.Db)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+		return false
+	} else if user.Password == password {
+		return true
+	}
+	return false
 }

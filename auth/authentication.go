@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/sha512"
+	"encoding/hex"
 	"net/http"
 	"time"
 
@@ -75,4 +77,10 @@ func AuthenticateToken(r *http.Request, userid string) bool {
 		util.GetAppUtil().AppLogger.Println("Token Not Found")
 		return false
 	}
+}
+
+func GenerateSHA(password string) string {
+	hash := sha512.New()
+	hash.Write([]byte(password))
+	return hex.EncodeToString(hash.Sum(nil))
 }

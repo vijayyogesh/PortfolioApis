@@ -119,6 +119,8 @@ CREATE TABLE IF NOT EXISTS public.users
     CONSTRAINT users_pkey PRIMARY KEY (user_id)
 )
 
+alter table users add column password character varying(500)
+
 TABLESPACE pg_default;
 
 ALTER TABLE public.users

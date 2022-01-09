@@ -29,6 +29,7 @@ type User struct {
 	UserId       string
 	StartDate    time.Time
 	TargetAmount float64 `json:",string"`
+	Password     string  `json:"password"`
 }
 
 type HoldingsInputJson struct {
@@ -200,7 +201,8 @@ func LoadCompaniesMasterListDB(companiesMasterList []Company, appUtil *util.AppU
 }
 
 func AddUserDB(user User, db *sql.DB) error {
-	_, err := db.Exec("INSERT INTO USERS(USER_ID, START_DATE, TARGET_AMOUNT) VALUES($1, $2, $3) ", user.UserId, user.StartDate, user.TargetAmount)
+	_, err := db.Exec("INSERT INTO USERS(USER_ID, START_DATE, TARGET_AMOUNT, PASSWORD) VALUES($1, $2, $3, $4) ",
+		user.UserId, user.StartDate, user.TargetAmount, user.Password)
 	if err != nil {
 		return err
 	}
@@ -368,4 +370,20 @@ func GetTargetAmountDB(userid string, db *sql.DB) (float64, error) {
 		}
 	}
 	return targetAmount, nil
+}
+
+func GetPassword(userid string, db *sql.DB) (string, error) {
+	var password string
+	records, err := db.Query("SELECT PASSWORD FROM USERS WHERE USER_ID = $1 ", userid)
+	if err != nil {
+		return password, err
+	}
+	defer records.Close()
+	for records.Next() {
+		errRead := records.Scan(&password)
+		if errRead != nil {
+			return password, errRead
+		}
+	}
+	return password, nil
 }

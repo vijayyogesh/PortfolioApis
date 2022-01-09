@@ -25,25 +25,51 @@ func NewAppController(apputil *util.AppUtil) *AppController {
 /* Initial Handler for all routes/endpoints */
 func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	appC.AppUtil.AppLogger.Println("Starting ServeHTTP")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept, X-Requested-With, remember-me, Authorization, type, token")
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		handlePayloadError(err, appC, w)
 	} else {
 		/* Check UserId in Payload */
-		userId, err := getUserId(reqBody, appC)
+		user, err := getUser(reqBody, appC)
+		userId := user.UserId
 
 		if userId != "" && err == nil {
-			/* Handle Login */
-			if (r.URL.Path == constants.AppRouteLogin) && (r.Method == http.MethodPost) {
-				msg, err := auth.GetJWT(userId)
-				if err != nil {
-					appC.AppUtil.AppLogger.Println("Error encountered while generating JWT")
-					appC.AppUtil.AppLogger.Println(err)
-					msg = constants.AppErrJWTAuth
+			/* Handle Register */
+			if (r.URL.Path == constants.AppRouteRegister) && (r.Method == http.MethodPost) {
+				if user.Password != "" {
+					appC.AppUtil.AppLogger.Println("Registering New User")
+					shaPasswd := auth.GenerateSHA(user.Password)
+					user.Password = shaPasswd
+					msg := processor.AddUser(user)
+					json.NewEncoder(w).Encode(msg)
+				} else {
+					json.NewEncoder(w).Encode(constants.AppErrInvalidPassword)
 				}
-				appC.AppUtil.AppLogger.Println("Generated JWT for user - " + userId)
-				json.NewEncoder(w).Encode(msg)
+			} else if (r.URL.Path == constants.AppRouteLogin) && (r.Method == http.MethodPost) {
+				/* Handle Login */
+
+				/* Validate password */
+				shaPassword := auth.GenerateSHA(user.Password)
+				user.Password = shaPassword
+				isValidPassword := processor.IsValidPassword(user)
+				if isValidPassword {
+					appC.AppUtil.AppLogger.Println("Password Validated ")
+					/* Generate JWT when password is validated */
+					msg, err := auth.GetJWT(userId)
+					if err != nil {
+						appC.AppUtil.AppLogger.Println("Error encountered while generating JWT")
+						appC.AppUtil.AppLogger.Println(err)
+						msg = constants.AppErrJWTAuth
+					}
+					appC.AppUtil.AppLogger.Println("Generated JWT for user - " + userId)
+					json.NewEncoder(w).Encode(msg)
+				} else {
+					appC.AppUtil.AppLogger.Println("Invalid password provided ")
+					json.NewEncoder(w).Encode(constants.AppErrIncorrectPassword)
+				}
 
 			} else {
 				/* Authenticate Token when already logged In */
@@ -62,15 +88,15 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	appC.AppUtil.AppLogger.Println("Completed ServeHTTP")
 }
 
-/* Get UserId from request Payload */
-func getUserId(reqBody []byte, appC AppController) (string, error) {
+/* Get User from request Payload */
+func getUser(reqBody []byte, appC AppController) (data.User, error) {
 	var user data.User
 	err := json.Unmarshal(reqBody, &user)
 	if err != nil {
 		appC.AppUtil.AppLogger.Println(err)
-		return "", err
+		return user, err
 	}
-	return user.UserId, err
+	return user, err
 }
 
 /* Process App routes post JWT authentication */
@@ -93,7 +119,9 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == constants.AppRouteAddUser) && (r.Method == http.MethodPost) {
 		/* Route to add new user into system */
-		msg := processor.AddUser(payload)
+		var user data.User
+		json.Unmarshal(payload, &user)
+		msg := processor.AddUser(user)
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == constants.AppRouteAddUserHoldings) && (r.Method == http.MethodPost) {
 		/* Route to add user holdings */
