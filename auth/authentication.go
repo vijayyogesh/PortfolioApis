@@ -11,6 +11,12 @@ import (
 	"github.com/vijayyogesh/PortfolioApis/util"
 )
 
+type UserAuth struct{
+	UserId string
+	Token string
+	IsAuthenticated bool
+}
+
 /* Fetch new JWT after user enters correct credentials */
 func GetJWT(userid string) (string, error) {
 

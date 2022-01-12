@@ -64,8 +64,13 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						appC.AppUtil.AppLogger.Println(err)
 						msg = constants.AppErrJWTAuth
 					}
+					var userAuth auth.UserAuth;
+					userAuth.Token=msg
+					userAuth.UserId = userId
+					userAuth.IsAuthenticated = true
+
 					appC.AppUtil.AppLogger.Println("Generated JWT for user - " + userId)
-					json.NewEncoder(w).Encode(msg)
+					json.NewEncoder(w).Encode(userAuth)
 				} else {
 					appC.AppUtil.AppLogger.Println("Invalid password provided ")
 					json.NewEncoder(w).Encode(constants.AppErrIncorrectPassword)
