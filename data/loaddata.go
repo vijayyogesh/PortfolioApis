@@ -51,6 +51,10 @@ type Holdings struct {
 	Quantity  string `json:"quantity"`
 	BuyDate   string `json:"buyDate"`
 	BuyPrice  string `json:"buyPrice"`
+	LTP  string `json:"ltp"`
+	CurrentValue  string `json:"currentValue"`
+	PL  string `json:"pl"`
+	NetPct  string `json:"netPct"`
 }
 
 type Allocation struct {

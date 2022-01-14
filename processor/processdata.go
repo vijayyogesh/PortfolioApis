@@ -162,6 +162,12 @@ func GetUserHoldings(userInput []byte) (data.HoldingsOutputJson, error) {
 		return userHoldings, errCalc
 	}
 
+	aggregatedHoldings, err := AggregateHoldings(userHoldings)
+	if err != nil {
+		return userHoldings, err
+	}
+	userHoldings.Holdings = aggregatedHoldings
+
 	return userHoldings, nil
 }
 
@@ -730,4 +736,104 @@ func IsValidPassword(user data.User) bool {
 		return true
 	}
 	return false
+}
+
+/* Prepare data for Holdings table */
+func AggregateHoldings(userHoldings data.HoldingsOutputJson) ([]data.Holdings, error) {
+
+	var holdingsAggregated []data.Holdings
+
+	var holdingsMap map[string]data.Holdings = make(map[string]data.Holdings)
+
+	/* Loop transaction data and aggregate as needed */
+	for _, holding := range userHoldings.Holdings {
+		if holdingMapVal, isPresent := holdingsMap[holding.Companyid]; isPresent {
+
+			holdingMapQty, err := strconv.ParseFloat(holdingMapVal.Quantity, 64)
+			if err != nil {
+				appUtil.AppLogger.Println(err)
+				return holdingsAggregated, err
+			}
+
+			holdingMapBuyPrice, err := strconv.ParseFloat(holdingMapVal.BuyPrice, 64)
+			if err != nil {
+				appUtil.AppLogger.Println(err)
+				return holdingsAggregated, err
+			}
+
+			holdingQty, err := strconv.ParseFloat(holding.Quantity, 64)
+			if err != nil {
+				appUtil.AppLogger.Println(err)
+				return holdingsAggregated, err
+			}
+
+			holdingBuyPrice, err := strconv.ParseFloat(holding.BuyPrice, 64)
+			if err != nil {
+				appUtil.AppLogger.Println(err)
+				return holdingsAggregated, err
+			}
+
+			aggregatedBuyVal := (holdingMapQty * holdingMapBuyPrice) + (holdingQty * holdingBuyPrice)
+			aggregatedQty := holdingMapQty + holdingQty
+			aggregatedBuyPrice := aggregatedBuyVal / aggregatedQty
+
+			latestPriceData := dailyPriceCacheLatest[holding.Companyid]
+
+			/* Set aggregated Qty/Buy Price/Current Val/PL/return */
+			var updatedHolding data.Holdings
+			updatedHolding.Companyid = holding.Companyid
+			updatedHolding.Quantity = fmt.Sprintf("%.0f", aggregatedQty)
+			updatedHolding.BuyPrice = fmt.Sprintf("%.2f", aggregatedBuyPrice)
+			updatedHolding.LTP = fmt.Sprintf("%.2f", latestPriceData.CloseVal)
+
+			aggregatedCurrentVal := latestPriceData.CloseVal * aggregatedQty
+			updatedHolding.CurrentValue = fmt.Sprintf("%.2f", aggregatedCurrentVal)
+
+			aggregatedPL := aggregatedCurrentVal - aggregatedBuyVal
+			updatedHolding.PL = fmt.Sprintf("%.2f", aggregatedPL)
+
+			aggregatedReturn := (aggregatedPL / aggregatedBuyVal) * 100
+			updatedHolding.NetPct = fmt.Sprintf("%.2f", aggregatedReturn)
+
+			holdingsMap[holding.Companyid] = updatedHolding
+
+		} else {
+			latestPriceData := dailyPriceCacheLatest[holding.Companyid]
+
+			qty, err := strconv.ParseFloat(holding.Quantity, 64)
+			if err != nil {
+				appUtil.AppLogger.Println(err)
+				return holdingsAggregated, err
+			}
+
+			buyPrice, err := strconv.ParseFloat(holding.BuyPrice, 64)
+			if err != nil {
+				appUtil.AppLogger.Println(err)
+				return holdingsAggregated, err
+			}
+			holding.Quantity = fmt.Sprintf("%.0f", qty)
+			holding.BuyPrice = fmt.Sprintf("%.2f", buyPrice)
+
+			holding.LTP = fmt.Sprintf("%.2f", latestPriceData.CloseVal)
+			holding.CurrentValue = fmt.Sprintf("%.2f", latestPriceData.CloseVal*qty)
+
+			holdingBuyVal := buyPrice * qty
+			holdingPL := ((latestPriceData.CloseVal * qty) - holdingBuyVal)
+			holding.PL = fmt.Sprintf("%.2f", holdingPL)
+
+			holdingReturn := (holdingPL / holdingBuyVal) * 100
+			holding.NetPct = fmt.Sprintf("%.2f", holdingReturn)
+
+			holdingsMap[holding.Companyid] = holding
+		}
+	}
+
+	/* Flatten Holdings aggregated map to slice */
+
+	for _, holding := range holdingsMap {
+		holdingsAggregated = append(holdingsAggregated, holding)
+	}
+
+	return holdingsAggregated, nil
+
 }
