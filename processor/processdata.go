@@ -340,6 +340,11 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]float64, error) {
 	return networthMap, nil
 }
 
+/* 10) Fetch All Company Names */
+func FetchAllCompanies(userInput []byte) ([]data.Company, error) {
+	return FetchCompanies(appUtil.Db)
+}
+
 /* ROUTER METHODS END */
 /* -------------------------------------- */
 

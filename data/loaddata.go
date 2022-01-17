@@ -47,14 +47,14 @@ type HoldingsOutputJson struct {
 }
 
 type Holdings struct {
-	Companyid string `json:"companyid"`
-	Quantity  string `json:"quantity"`
-	BuyDate   string `json:"buyDate"`
-	BuyPrice  string `json:"buyPrice"`
-	LTP  string `json:"ltp"`
-	CurrentValue  string `json:"currentValue"`
-	PL  string `json:"pl"`
-	NetPct  string `json:"netPct"`
+	Companyid    string `json:"companyid"`
+	Quantity     string `json:"quantity"`
+	BuyDate      string `json:"buyDate"`
+	BuyPrice     string `json:"buyPrice"`
+	LTP          string `json:"ltp"`
+	CurrentValue string `json:"currentValue"`
+	PL           string `json:"pl"`
+	NetPct       string `json:"netPct"`
 }
 
 type Allocation struct {
@@ -166,14 +166,14 @@ func FetchCompaniesLatestPriceDataDB(companyid string, db *sql.DB) (CompaniesPri
 /* Fetch Unique Company Ids */
 func FetchCompaniesDB(db *sql.DB) ([]Company, error) {
 	var companies []Company
-	records, err := db.Query("SELECT COMPANY_ID, LOAD_DATE FROM COMPANIES ")
+	records, err := db.Query("SELECT COMPANY_ID, COMPANY_NAME, LOAD_DATE FROM COMPANIES ")
 	if err != nil {
 		return companies, err
 	}
 	defer records.Close()
 	for records.Next() {
 		var company Company
-		err := records.Scan(&company.CompanyId, &company.LoadDate)
+		err := records.Scan(&company.CompanyId, &company.CompanyName, &company.LoadDate)
 		if err != nil {
 			return companies, err
 		}

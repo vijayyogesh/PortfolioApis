@@ -64,8 +64,8 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						appC.AppUtil.AppLogger.Println(err)
 						msg = constants.AppErrJWTAuth
 					}
-					var userAuth auth.UserAuth;
-					userAuth.Token=msg
+					var userAuth auth.UserAuth
+					userAuth.Token = msg
 					userAuth.UserId = userId
 					userAuth.IsAuthenticated = true
 
@@ -168,7 +168,16 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 		} else {
 			json.NewEncoder(w).Encode(resp)
 		}
+	} else if (r.URL.Path == constants.AppRouteFetchAllCompanies) && (r.Method == http.MethodPost) {
+		/* Route to display NetWorth over a timeframe */
+		resp, err := processor.FetchAllCompanies(payload)
+		if err != nil {
+			json.NewEncoder(w).Encode(constants.AppErrFetchAllCompanies)
+		} else {
+			json.NewEncoder(w).Encode(resp)
+		}
 	}
+
 }
 
 func handlePayloadError(err error, appC AppController, w http.ResponseWriter) {

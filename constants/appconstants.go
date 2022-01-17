@@ -27,6 +27,7 @@ const (
 	AppRouteSyncPf                  string = "/PortfolioApis/syncportfolio"
 	AppRouteNWPeriod                string = "/PortfolioApis/fetchnetworthoverperiod"
 	AppRouteUpdateSelectedCompanies string = "/PortfolioApis/updateselectedcompanies"
+	AppRouteFetchAllCompanies       string = "/PortfolioApis/fetchallcompanies"
 
 	/* Auth/JWT */
 	AppJWTAudience = "ApiUsers"
@@ -69,4 +70,7 @@ const (
 
 	AppErrUpdateSelectedCompaniesPrice     = "E210: Error while Updating Prices for selected companies"
 	AppSuccessUpdateSelectedCompaniesPrice = "Prices updated successfully for selected companies !!"
+
+	AppErrFetchAllCompanies     = "E211: Error while fetching all companies"
+	AppSuccessFetchAllCompanies = "Fetched all companies !!"
 )
