@@ -85,6 +85,7 @@ func (appC AppController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		} else {
+			appC.AppUtil.AppLogger.Println(err)
 			appC.AppUtil.AppLogger.Println("Invalid request")
 			json.NewEncoder(w).Encode(constants.AppErrUserIdInvalid)
 		}
@@ -134,7 +135,7 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 		json.NewEncoder(w).Encode(msg)
 	} else if (r.URL.Path == constants.AppRouteGetUserHoldings) && (r.Method == http.MethodPost) {
 		/* Route to fetch User Holdings */
-		resp, err := processor.GetUserHoldings(payload)
+		resp, err := processor.GetUserHoldings(payload, true)
 		if err != nil {
 			json.NewEncoder(w).Encode(constants.AppErrGetUserHoldings)
 		} else {

@@ -114,6 +114,8 @@ func AddUser(user data.User) string {
 
 /* 4) Add User Holdings */
 func AddUserHoldings(userInput []byte) string {
+	appUtil.AppLogger.Println("Starting AddUserHoldings")
+	appUtil.AppLogger.Println(userInput)
 	var holdingsInput data.HoldingsInputJson
 
 	json.Unmarshal(userInput, &holdingsInput)
@@ -125,6 +127,7 @@ func AddUserHoldings(userInput []byte) string {
 
 	if isUserPresent {
 		err := data.AddUserHoldingsDB(holdingsInput, appUtil.Db)
+		appUtil.AppLogger.Println(holdingsInput)
 		if err != nil {
 			appUtil.AppLogger.Println(err)
 			return constants.AppErrAddUserHoldings
@@ -135,7 +138,7 @@ func AddUserHoldings(userInput []byte) string {
 }
 
 /* 5) Get User Holdings */
-func GetUserHoldings(userInput []byte) (data.HoldingsOutputJson, error) {
+func GetUserHoldings(userInput []byte, aggregateHoldings bool) (data.HoldingsOutputJson, error) {
 	var userHoldings data.HoldingsOutputJson
 
 	var user data.User
@@ -162,11 +165,13 @@ func GetUserHoldings(userInput []byte) (data.HoldingsOutputJson, error) {
 		return userHoldings, errCalc
 	}
 
-	aggregatedHoldings, err := AggregateHoldings(userHoldings)
-	if err != nil {
-		return userHoldings, err
+	if(aggregateHoldings){
+		aggregatedHoldings, err := AggregateHoldings(userHoldings)
+		if err != nil {
+			return userHoldings, err
+		}
+		userHoldings.Holdings = aggregatedHoldings
 	}
-	userHoldings.Holdings = aggregatedHoldings
 
 	return userHoldings, nil
 }
@@ -234,7 +239,7 @@ func GetPortfolioModelSync(userInput []byte) (data.SyncedPortfolio, error) {
 	}
 
 	/* Get Current Holdings */
-	holdingsOutputJson, err := GetUserHoldings(userInput)
+	holdingsOutputJson, err := GetUserHoldings(userInput, true)
 	if err != nil {
 		appUtil.AppLogger.Println(err)
 		return syncedPf, err
@@ -306,7 +311,8 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]float64, error) {
 
 	var networthMap map[string]float64 = make(map[string]float64)
 
-	userHoldings, err := GetUserHoldings(userInput)
+	userHoldings, err := GetUserHoldings(userInput, false)
+	appUtil.AppLogger.Println(userHoldings)
 	if err != nil {
 		appUtil.AppLogger.Println(err)
 		return networthMap, err
@@ -790,6 +796,7 @@ func AggregateHoldings(userHoldings data.HoldingsOutputJson) ([]data.Holdings, e
 			updatedHolding.Quantity = fmt.Sprintf("%.0f", aggregatedQty)
 			updatedHolding.BuyPrice = fmt.Sprintf("%.2f", aggregatedBuyPrice)
 			updatedHolding.LTP = fmt.Sprintf("%.2f", latestPriceData.CloseVal)
+			updatedHolding.BuyDate = holding.BuyDate
 
 			aggregatedCurrentVal := latestPriceData.CloseVal * aggregatedQty
 			updatedHolding.CurrentValue = fmt.Sprintf("%.2f", aggregatedCurrentVal)
