@@ -334,8 +334,12 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]float64, error) {
 			for buyDate.Before(time.Now()) {
 				dateStr := buyDate.Format("2006-01-02")
 				dailyData, ok := dailyPriceRecordsMap[dateStr]
-				if ok {
+				if (ok && dailyData.CloseVal != 0) {
 					networthMap[dateStr] = networthMap[dateStr] + (dailyData.CloseVal * qty)
+				} else{
+					/* As prices are zero on Holidays */
+					previousDate := buyDate.AddDate(0, 0, -1)
+					networthMap[dateStr] = networthMap[previousDate.Format("2006-01-02")]
 				}
 				buyDate = buyDate.AddDate(0, 0, 1)
 			}
