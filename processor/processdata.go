@@ -335,14 +335,35 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]float64, error) {
 				dateStr := buyDate.Format("2006-01-02")
 				dailyData, ok := dailyPriceRecordsMap[dateStr]
 				if (ok && dailyData.CloseVal != 0) {
-					networthMap[dateStr] = networthMap[dateStr] + (dailyData.CloseVal * qty)
+					networthMap[dateStr] = float64(int((networthMap[dateStr] + (dailyData.CloseVal * qty)) * 100)) / 100
 				} else{
 					/* As prices are zero on Holidays */
 					previousDate := buyDate.AddDate(0, 0, -1)
-					networthMap[dateStr] = networthMap[previousDate.Format("2006-01-02")]
+					networthMap[dateStr] = float64(int(networthMap[previousDate.Format("2006-01-02")] * 100)) / 100
 				}
 				buyDate = buyDate.AddDate(0, 0, 1)
 			}
+		}
+	}
+
+	/* Add NT Holdings to NW */
+	for _, holdingsNt := range userHoldings.HoldingsNT {
+		buyDate, err := time.Parse("2006-01-02T15:04:05Z", holdingsNt.BuyDate)
+		if err != nil {
+			appUtil.AppLogger.Println(err)
+			return networthMap, err
+		}
+
+		for buyDate.Before(time.Now()) {
+			dateStr := buyDate.Format("2006-01-02")
+			currVal, parseErr := strconv.ParseFloat(holdingsNt.CurrentValue, 64)			
+			if parseErr != nil {
+				appUtil.AppLogger.Println(parseErr)
+				return networthMap, parseErr
+			}
+
+			networthMap[dateStr] = float64(int( (networthMap[dateStr] + currVal) * 100)) / 100
+			buyDate = buyDate.AddDate(0, 0, 1)
 		}
 	}
 
