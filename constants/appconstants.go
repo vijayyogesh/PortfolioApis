@@ -40,6 +40,10 @@ const (
 	AppDataPricesUrl        = "https://query1.finance.yahoo.com/v7/finance/download/"
 	AppDataPricesUrlSuffix  = ".NS?period1=%s&period2=%s&interval=1d&events=history&includeAdjustedClose=true"
 
+	AppDataPrefixMF           = "0P00"
+	AppDataPricesFileSuffixMF = ".BO.csv"
+	AppDataPricesUrlSuffixMF  = ".BO?period1=%s&period2=%s&interval=1d&events=history&includeAdjustedClose=true"
+
 	/* Error Codes */
 	AppErrUserUnauthorized  = "E100: User is Unauthorized!!. Please check Token value."
 	AppErrJWTAuth           = "E101: Error encountered while authenticating user"

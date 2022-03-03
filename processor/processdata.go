@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -338,8 +339,20 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]float64, error) {
 					networthMap[dateStr] = float64(int((networthMap[dateStr] + (dailyData.CloseVal * qty)) * 100)) / 100
 				} else{
 					/* As prices are zero on Holidays */
-					previousDate := buyDate.AddDate(0, 0, -1)
-					networthMap[dateStr] = float64(int(networthMap[previousDate.Format("2006-01-02")] * 100)) / 100
+					isZero := true
+					buyDateCopy := buyDate
+					for (isZero) {
+						previousDate := buyDateCopy.AddDate(0, 0, -1)
+						previousDateStr := previousDate.Format("2006-01-02")
+						dailyDataCopy, ok := dailyPriceRecordsMap[previousDateStr]
+						if (ok && dailyDataCopy.CloseVal != 0) {
+							networthMap[dateStr] = float64(int((networthMap[dateStr] + (dailyDataCopy.CloseVal * qty)) * 100)) / 100
+							isZero = false
+							break
+						}
+						buyDateCopy = previousDate						
+					}
+					
 				}
 				buyDate = buyDate.AddDate(0, 0, 1)
 			}
@@ -430,8 +443,15 @@ func DownloadDataAsync(companiesData []data.Company) {
 
 /* Download data file from online */
 func DownloadDataFile(companyId string, fromTime time.Time) error {
-	filePath := appUtil.Config.AppDataDir + companyId + constants.AppDataPricesFileSuffix
-	url := constants.AppDataPricesUrl + companyId + constants.AppDataPricesUrlSuffix
+	filePath := ""
+	url := ""
+	if(strings.Contains(companyId, constants.AppDataPrefixMF)){
+		filePath = appUtil.Config.AppDataDir + companyId + constants.AppDataPricesFileSuffixMF
+		url = constants.AppDataPricesUrl + companyId + constants.AppDataPricesUrlSuffixMF
+	} else{
+		filePath = appUtil.Config.AppDataDir + companyId + constants.AppDataPricesFileSuffix
+		url = constants.AppDataPricesUrl + companyId + constants.AppDataPricesUrlSuffix
+	}
 
 	out, err := os.Create(filePath)
 	if err != nil {
@@ -478,8 +498,13 @@ func LoadPriceData(db *sql.DB) {
 
 		for _, company := range companies {
 			wg.Add(1)
-			filePath := appUtil.Config.AppDataDir + company.CompanyId + constants.AppDataPricesFileSuffix
-
+			filePath := ""
+			if(strings.Contains(company.CompanyId, constants.AppDataPrefixMF)){
+				filePath = appUtil.Config.AppDataDir + company.CompanyId + constants.AppDataPricesFileSuffixMF
+			} else {
+				filePath = appUtil.Config.AppDataDir + company.CompanyId + constants.AppDataPricesFileSuffix
+			}
+			
 			go func(companyid string) {
 				defer wg.Done()
 				var err error
