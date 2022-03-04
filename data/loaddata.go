@@ -148,7 +148,7 @@ func FetchCompaniesCompletePriceDataDB(companyid string, db *sql.DB) []Companies
 /* Fetch Latest Price Data for a given company */
 func FetchCompaniesLatestPriceDataDB(companyid string, db *sql.DB) (CompaniesPriceData, error) {
 	var dailyPriceRecords CompaniesPriceData
-	records, err := db.Query("SELECT DATE_VAL, CLOSE_VAL FROM COMPANIES_PRICE_DATA WHERE COMPANY_ID = $1 ORDER BY DATE_VAL DESC LIMIT 1", companyid)
+	records, err := db.Query("SELECT DATE_VAL, CLOSE_VAL FROM COMPANIES_PRICE_DATA WHERE COMPANY_ID = $1 AND CLOSE_VAL != 0 ORDER BY DATE_VAL DESC LIMIT 1", companyid)
 	if err != nil {
 		return dailyPriceRecords, err
 	}
