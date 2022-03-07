@@ -311,6 +311,8 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]float64, error) {
 	appUtil.AppLogger.Println("Starting FetchNetWorthOverPeriods")
 
 	var networthMap map[string]float64 = make(map[string]float64)
+	var trackedHoldingsMap map[string]float64 = make(map[string]float64)
+	var allocationMap map[string]float64 = make(map[string]float64)
 
 	userHoldings, err := GetUserHoldings(userInput, false)
 	appUtil.AppLogger.Println(userHoldings)
@@ -336,7 +338,9 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]float64, error) {
 				dateStr := buyDate.Format("2006-01-02")
 				dailyData, ok := dailyPriceRecordsMap[dateStr]
 				if (ok && dailyData.CloseVal != 0) {
-					networthMap[dateStr] = float64(int((networthMap[dateStr] + (dailyData.CloseVal * qty)) * 100)) / 100
+					networthVal := float64(int((networthMap[dateStr] + (dailyData.CloseVal * qty)) * 100)) / 100
+					networthMap[dateStr] = networthVal
+					trackedHoldingsMap[dateStr] = networthVal
 				} else{
 					/* As prices are zero on Holidays */
 					isZero := true
@@ -346,15 +350,17 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]float64, error) {
 						previousDateStr := previousDate.Format("2006-01-02")
 						dailyDataCopy, ok := dailyPriceRecordsMap[previousDateStr]
 						if (ok && dailyDataCopy.CloseVal != 0) {
-							networthMap[dateStr] = float64(int((networthMap[dateStr] + (dailyDataCopy.CloseVal * qty)) * 100)) / 100
+							networthVal := float64(int((networthMap[dateStr] + (dailyDataCopy.CloseVal * qty)) * 100)) / 100
+							networthMap[dateStr] = networthVal
+							trackedHoldingsMap[dateStr] = networthVal
 							isZero = false
 							break
 						}
 						buyDateCopy = previousDate						
-					}
-					
+					}					
 				}
 				buyDate = buyDate.AddDate(0, 0, 1)
+				allocationMap[dateStr] = (trackedHoldingsMap[dateStr] / networthMap[dateStr]) * 100
 			}
 		}
 	}
@@ -377,10 +383,13 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]float64, error) {
 
 			networthMap[dateStr] = float64(int( (networthMap[dateStr] + currVal) * 100)) / 100
 			buyDate = buyDate.AddDate(0, 0, 1)
+
+			allocationMap[dateStr] = (trackedHoldingsMap[dateStr] / networthMap[dateStr]) * 100
 		}
 	}
 
 	appUtil.AppLogger.Println("Completed FetchNetWorthOverPeriods")
+	appUtil.AppLogger.Println(allocationMap)
 	return networthMap, nil
 }
 
