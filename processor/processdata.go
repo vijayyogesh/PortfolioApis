@@ -307,30 +307,33 @@ func GetPortfolioModelSync(userInput []byte) (data.SyncedPortfolio, error) {
 }
 
 /* 9) Fetch NW Periods for given User */
-func FetchNetWorthOverPeriods(userInput []byte) (map[string]float64, error) {
+func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, error) {
 	appUtil.AppLogger.Println("Starting FetchNetWorthOverPeriods")
+
+	var combinedOutputMap map[string]map[string]float64 = make(map[string]map[string]float64)
 
 	var networthMap map[string]float64 = make(map[string]float64)
 	var trackedHoldingsMap map[string]float64 = make(map[string]float64)
+	var nonTrackedHoldingsMap map[string]float64 = make(map[string]float64)
 	var allocationMap map[string]float64 = make(map[string]float64)
 
 	userHoldings, err := GetUserHoldings(userInput, false)
 	appUtil.AppLogger.Println(userHoldings)
 	if err != nil {
 		appUtil.AppLogger.Println(err)
-		return networthMap, err
+		return combinedOutputMap, err
 	}
 	for _, holdings := range userHoldings.Holdings {
 		dailyPriceRecordsMap := FetchCompaniesCompletePrice(holdings.Companyid, appUtil.Db)
 		buyDate, err := time.Parse("2006-01-02T15:04:05Z", holdings.BuyDate)
 		if err != nil {
 			appUtil.AppLogger.Println(err)
-			return networthMap, err
+			return combinedOutputMap, err
 		} else {
 			qty, parseErr := strconv.ParseFloat(holdings.Quantity, 64)
 			if parseErr != nil {
 				appUtil.AppLogger.Println(parseErr)
-				return networthMap, parseErr
+				return combinedOutputMap, parseErr
 			}
 
 			/* Loop all dates from Buy Date and calc NW */
@@ -370,7 +373,7 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]float64, error) {
 		buyDate, err := time.Parse("2006-01-02T15:04:05Z", holdingsNt.BuyDate)
 		if err != nil {
 			appUtil.AppLogger.Println(err)
-			return networthMap, err
+			return combinedOutputMap, err
 		}
 
 		for buyDate.Before(time.Now()) {
@@ -378,19 +381,25 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]float64, error) {
 			currVal, parseErr := strconv.ParseFloat(holdingsNt.CurrentValue, 64)			
 			if parseErr != nil {
 				appUtil.AppLogger.Println(parseErr)
-				return networthMap, parseErr
+				return combinedOutputMap, parseErr
 			}
 
-			networthMap[dateStr] = float64(int( (networthMap[dateStr] + currVal) * 100)) / 100
+			networthVal := float64(int( (networthMap[dateStr] + currVal) * 100)) / 100
+			networthMap[dateStr] = networthVal
+			nonTrackedHoldingsMap[dateStr] = float64(int( (nonTrackedHoldingsMap[dateStr] + currVal) * 100)) / 100
+
 			buyDate = buyDate.AddDate(0, 0, 1)
 
 			allocationMap[dateStr] = (trackedHoldingsMap[dateStr] / networthMap[dateStr]) * 100
 		}
 	}
 
+	combinedOutputMap["networth"] = networthMap
+	combinedOutputMap["equity"] = trackedHoldingsMap
+	combinedOutputMap["debt"] = nonTrackedHoldingsMap
+
 	appUtil.AppLogger.Println("Completed FetchNetWorthOverPeriods")
-	appUtil.AppLogger.Println(allocationMap)
-	return networthMap, nil
+	return combinedOutputMap, nil
 }
 
 /* 10) Fetch All Company Names */
