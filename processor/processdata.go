@@ -861,6 +861,7 @@ func AggregateHoldings(userHoldings data.HoldingsOutputJson) ([]data.Holdings, e
 			/* Set aggregated Qty/Buy Price/Current Val/PL/return */
 			var updatedHolding data.Holdings
 			updatedHolding.Companyid = holding.Companyid
+			updatedHolding.CompanyName = holding.CompanyName
 			updatedHolding.Quantity = fmt.Sprintf("%.0f", aggregatedQty)
 			updatedHolding.BuyPrice = fmt.Sprintf("%.2f", aggregatedBuyPrice)
 			updatedHolding.LTP = fmt.Sprintf("%.2f", latestPriceData.CloseVal)

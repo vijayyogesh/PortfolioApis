@@ -48,6 +48,7 @@ type HoldingsOutputJson struct {
 
 type Holdings struct {
 	Companyid    string `json:"companyid"`
+	CompanyName    string `json:"companyName"`
 	Quantity     string `json:"quantity"`
 	BuyDate      string `json:"buyDate"`
 	BuyPrice     string `json:"buyPrice"`
@@ -276,8 +277,9 @@ func GetUserHoldingsDB(userid string, db *sql.DB) (HoldingsOutputJson, error) {
 	holdingsOutputJson.UserID = userid
 
 	/* Tracked Data */
-	records, err := db.Query("SELECT HOLDINGS.USER_ID, HOLDINGS.COMPANY_ID, HOLDINGS.QUANTITY, HOLDINGS.BUY_DATE, HOLDINGS.BUY_PRICE FROM USERS USERS, USER_HOLDINGS HOLDINGS "+
-		"WHERE USERS.USER_ID = HOLDINGS.USER_ID AND USERS.USER_ID = $1", userid)
+	records, err := db.Query("SELECT HOLDINGS.USER_ID, HOLDINGS.COMPANY_ID, HOLDINGS.QUANTITY, HOLDINGS.BUY_DATE, HOLDINGS.BUY_PRICE, COMPANIES.COMPANY_NAME "+
+		"FROM USERS USERS, USER_HOLDINGS HOLDINGS, COMPANIES COMPANIES "+
+		"WHERE USERS.USER_ID = HOLDINGS.USER_ID AND HOLDINGS.COMPANY_ID = COMPANIES.COMPANY_ID AND USERS.USER_ID = $1", userid)
 	if err != nil {
 		return holdingsOutputJson, err
 	}
@@ -286,7 +288,7 @@ func GetUserHoldingsDB(userid string, db *sql.DB) (HoldingsOutputJson, error) {
 	for records.Next() {
 		var holdings Holdings
 		var userid string
-		err := records.Scan(&userid, &holdings.Companyid, &holdings.Quantity, &holdings.BuyDate, &holdings.BuyPrice)
+		err := records.Scan(&userid, &holdings.Companyid, &holdings.Quantity, &holdings.BuyDate, &holdings.BuyPrice, &holdings.CompanyName)
 		if err != nil {
 			return holdingsOutputJson, err
 		}
