@@ -29,6 +29,9 @@ var usersCache map[string]data.User = make(map[string]data.User)
 
 var appUtil *util.AppUtil
 
+var newPricesAvailable bool = false
+var newLatestPricesAvailable bool = false
+
 /* Initializing Processor with required config */
 func InitProcessor(appUtilInput *util.AppUtil) {
 	appUtil = appUtilInput
@@ -549,6 +552,8 @@ func LoadPriceData(db *sql.DB) {
 	} else {
 		appUtil.AppLogger.Println(err)
 	}
+	newPricesAvailable = true
+	newLatestPricesAvailable = true
 }
 
 func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPriceData, int, error) {
@@ -613,7 +618,7 @@ func processDataErr(dataError error, k int, companyid string) {
 /* Fetch All Price Data initially from DB and use cache for subsequent requests */
 func FetchCompaniesCompletePrice(companyid string, db *sql.DB) map[string]data.CompaniesPriceData {
 	var dailyPriceRecordsMap map[string]data.CompaniesPriceData = make(map[string]data.CompaniesPriceData)
-	if dailyPriceCache[companyid] != nil {
+	if (dailyPriceCache[companyid] != nil && !newPricesAvailable) {
 		appUtil.AppLogger.Println("FetchCompaniesCompletePrice - From Cache")
 		dailyPriceRecordsMap = dailyPriceCache[companyid]
 	} else {
@@ -624,13 +629,14 @@ func FetchCompaniesCompletePrice(companyid string, db *sql.DB) map[string]data.C
 			dailyPriceRecordsMap[dateStr] = priceData
 		}
 		dailyPriceCache[companyid] = dailyPriceRecordsMap
+		newPricesAvailable = false
 	}
 	return dailyPriceRecordsMap
 }
 
 /* Load Latest Price Data from DB and use cache for subsequent requests */
 func LoadLatestCompaniesCompletePrice(companyid string, db *sql.DB) error {
-	if _, ok := dailyPriceCacheLatest[companyid]; ok {
+	if _, ok := dailyPriceCacheLatest[companyid]; ok && !newLatestPricesAvailable {
 		appUtil.AppLogger.Println("LoadLatestCompaniesCompletePrice - Price data already in Cache")
 	} else {
 		appUtil.AppLogger.Println("LoadLatestCompaniesCompletePrice - Loading Price Data From DB to Cache")
@@ -640,6 +646,7 @@ func LoadLatestCompaniesCompletePrice(companyid string, db *sql.DB) error {
 			return err
 		}
 		dailyPriceCacheLatest[companyid] = dailyPriceRecordsLatest
+		newLatestPricesAvailable = false
 	}
 	return nil
 }
