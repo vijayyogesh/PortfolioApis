@@ -549,8 +549,8 @@ func LoadPriceData(db *sql.DB) {
 	} else {
 		appUtil.AppLogger.Println(err)
 	}
-	dailyPriceCache = nil
-	dailyPriceCacheLatest = nil
+	dailyPriceCache = make(map[string]map[string]data.CompaniesPriceData)
+	dailyPriceCacheLatest = make(map[string]data.CompaniesPriceData)
 }
 
 func ReadDailyPriceCsv(filePath string, companyid string) ([]data.CompaniesPriceData, int, error) {
