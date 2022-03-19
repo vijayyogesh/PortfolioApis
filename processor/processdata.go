@@ -828,6 +828,9 @@ func AggregateHoldings(userHoldings data.HoldingsOutputJson) ([]data.Holdings, e
 
 	var holdingsMap map[string]data.Holdings = make(map[string]data.Holdings)
 
+	var aggregatedBuyVal float64
+	var aggregatedBuyPrice float64
+
 	/* Loop transaction data and aggregate as needed */
 	for _, holding := range userHoldings.Holdings {
 		if holdingMapVal, isPresent := holdingsMap[holding.Companyid]; isPresent {
@@ -856,9 +859,16 @@ func AggregateHoldings(userHoldings data.HoldingsOutputJson) ([]data.Holdings, e
 				return holdingsAggregated, err
 			}
 
-			aggregatedBuyVal := (holdingMapQty * holdingMapBuyPrice) + (holdingQty * holdingBuyPrice)
 			aggregatedQty := holdingMapQty + holdingQty
-			aggregatedBuyPrice := aggregatedBuyVal / aggregatedQty
+
+			if(holdingQty > 0) {
+				aggregatedBuyVal = (holdingMapQty * holdingMapBuyPrice) + (holdingQty * holdingBuyPrice)
+				aggregatedBuyPrice = aggregatedBuyVal / aggregatedQty
+			} else {
+				/* Use same buy price & buy val for a sell transaction */
+				aggregatedBuyVal = aggregatedQty * holdingMapBuyPrice
+				aggregatedBuyPrice = holdingMapBuyPrice
+			}
 
 			latestPriceData := dailyPriceCacheLatest[holding.Companyid]
 
