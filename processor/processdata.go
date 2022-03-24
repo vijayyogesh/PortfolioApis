@@ -127,8 +127,36 @@ func AddUserHoldings(userInput []byte) string {
 	}
 
 	if isUserPresent {
-		err := data.AddUserHoldingsDB(holdingsInput, appUtil.Db)
 		appUtil.AppLogger.Println(holdingsInput)
+
+		/* When it is a Sell transaction, move it to cash by default */
+		for _, company := range holdingsInput.Holdings {
+			qty, errQty := strconv.ParseFloat(company.Quantity, 64)
+			sellPrice, errSellPrice := strconv.ParseFloat(company.BuyPrice, 64)
+			if errQty != nil {
+				appUtil.AppLogger.Println(errQty)
+				return constants.AppErrAddUserHoldings
+			}
+			if errSellPrice != nil {
+				appUtil.AppLogger.Println(errSellPrice)
+				return constants.AppErrAddUserHoldings
+			}
+
+			if (qty < 0) {
+				value := -qty * sellPrice
+				holdingsNTCash := data.HoldingsNonTracked{
+					SecurityId: "CASH", 
+					BuyDate: company.BuyDate,
+					BuyValue: fmt.Sprintf("%f", value),
+					CurrentValue: fmt.Sprintf("%f", value),
+					InterestRate: "0",
+				}
+				holdingsInput.HoldingsNT = append(holdingsInput.HoldingsNT, holdingsNTCash)
+			}
+		}
+
+		/* Push data to DB */
+		err := data.AddUserHoldingsDB(holdingsInput, appUtil.Db)		
 		if err != nil {
 			appUtil.AppLogger.Println(err)
 			return constants.AppErrAddUserHoldings
