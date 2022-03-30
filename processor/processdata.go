@@ -242,10 +242,15 @@ func GetModelPortfolio(userInput []byte) (data.ModelPortfolio, error) {
 	}
 
 	if isUserPresent {
-		modelPf, err := data.GetModelPortfolioDB(user.UserId, appUtil.Db)
+		modelPf, err := data.GetModelPortfolioDB(user.UserId, appUtil.Db)		
 		if err != nil {
 			appUtil.AppLogger.Println(err)
 			return modelPortfolio, err
+		}
+		/* Below block is added for formatting */
+		for key := range modelPf.Securities {
+			secReasonablePrice, _ := strconv.ParseFloat(modelPf.Securities[key].ReasonablePrice, 64)
+			modelPf.Securities[key].ReasonablePrice = fmt.Sprintf("%.2f", secReasonablePrice)
 		}
 		modelPortfolio = modelPf
 	}
@@ -314,14 +319,14 @@ func GetPortfolioModelSync(userInput []byte) (data.SyncedPortfolio, error) {
 		/* Form Structure stating how much to invest/prune in each model security */
 		var adjustedHolding data.AdjustedHolding
 		adjustedHolding.Securityid = security.Securityid
-		adjustedHolding.AdjustedAmount = fmt.Sprintf("%f", amountToBeAllocated)
+		adjustedHolding.AdjustedAmount = fmt.Sprintf("%.2f", amountToBeAllocated)
 
 		/* Check if current price is below reasonable price */
 		LoadLatestCompaniesCompletePrice(security.Securityid, appUtil.Db)
 		latestPriceData := dailyPriceCacheLatest[security.Securityid]
 		secReasonablePrice, _ := strconv.ParseFloat(security.ReasonablePrice, 64)
 		percentBRP := (secReasonablePrice - latestPriceData.CloseVal) / secReasonablePrice * 100.0
-		adjustedHolding.PercentBelowReasonablePrice = fmt.Sprintf("%f", percentBRP)
+		adjustedHolding.PercentBelowReasonablePrice = fmt.Sprintf("%.2f", percentBRP)
 		if latestPriceData.CloseVal < secReasonablePrice {
 			adjustedHolding.BelowReasonablePrice = "Y"
 		} else {
