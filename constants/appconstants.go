@@ -40,6 +40,12 @@ const (
 	AppDataPricesUrl        = "https://query1.finance.yahoo.com/v7/finance/download/"
 	AppDataPricesUrlSuffix  = ".NS?period1=%s&period2=%s&interval=1d&events=history&includeAdjustedClose=true"
 
+	/* Below 4 constants added to support Index data from Yahoo finance*/
+	AppDataCsv                      = ".csv"
+	AppDataBenchmarkNSE             = "NSEI"
+	AppDataBenchmarkPricesUrlSuffix = "?period1=%s&period2=%s&interval=1d&events=history&includeAdjustedClose=true"
+	AppDataBenchmarkAppenderText    = "^"
+
 	AppDataPrefixMF           = "0P00"
 	AppDataPricesFileSuffixMF = ".BO.csv"
 	AppDataPricesUrlSuffixMF  = ".BO?period1=%s&period2=%s&interval=1d&events=history&includeAdjustedClose=true"
