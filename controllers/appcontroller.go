@@ -170,10 +170,18 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 			json.NewEncoder(w).Encode(resp)
 		}
 	} else if (r.URL.Path == constants.AppRouteFetchAllCompanies) && (r.Method == http.MethodPost) {
-		/* Route to display NetWorth over a timeframe */
+		/* Route to Fetch All Companies */
 		resp, err := processor.FetchAllCompanies(payload)
 		if err != nil {
 			json.NewEncoder(w).Encode(constants.AppErrFetchAllCompanies)
+		} else {
+			json.NewEncoder(w).Encode(resp)
+		}
+	} else if (r.URL.Path == constants.AppRouteCalculateReturn) && (r.Method == http.MethodPost) {
+		/* Route to calculate Return */
+		resp, err := processor.CalculateReturn(payload)
+		if err != nil {
+			json.NewEncoder(w).Encode(constants.AppErrCalculateReturn)
 		} else {
 			json.NewEncoder(w).Encode(resp)
 		}

@@ -28,6 +28,7 @@ const (
 	AppRouteNWPeriod                string = "/PortfolioApis/fetchnetworthoverperiod"
 	AppRouteUpdateSelectedCompanies string = "/PortfolioApis/updateselectedcompanies"
 	AppRouteFetchAllCompanies       string = "/PortfolioApis/fetchallcompanies"
+	AppRouteCalculateReturn         string = "/PortfolioApis/calculatereturn"
 
 	/* Auth/JWT */
 	AppJWTAudience = "ApiUsers"
@@ -83,4 +84,7 @@ const (
 
 	AppErrFetchAllCompanies     = "E211: Error while fetching all companies"
 	AppSuccessFetchAllCompanies = "Fetched all companies !!"
+
+	AppErrCalculateReturn     = "E211: Error while calculating return"
+	AppSuccessCalculateReturn = "Calculated Return Successfuly !!"
 )

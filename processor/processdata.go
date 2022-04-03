@@ -440,6 +440,11 @@ func FetchAllCompanies(userInput []byte) ([]data.Company, error) {
 	return FetchCompanies(appUtil.Db)
 }
 
+/* 11) Calculate Return */
+func CalculateReturn(userInput []byte) (string, error) {
+	return constants.AppSuccessCalculateReturn, nil
+}
+
 /* ROUTER METHODS END */
 /* -------------------------------------- */
 
