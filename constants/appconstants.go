@@ -9,6 +9,9 @@ const (
 	AppDBFmtString string = "host=%s port=%d user=%s password=%s dbname=%s sslmode=disable"
 	AppDBMaxConn   int    = 20
 
+	/* Return constants */
+	ReturnBaseValue = 10
+
 	/* Env/Config Constants */
 	AppEnvName string = "app"
 	AppEnvType string = "env"

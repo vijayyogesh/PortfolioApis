@@ -442,6 +442,37 @@ func FetchAllCompanies(userInput []byte) ([]data.Company, error) {
 
 /* 11) Calculate Return */
 func CalculateReturn(userInput []byte) (string, error) {
+	/* Get Current Holdings */
+	holdingsOutputJson, err := GetUserHoldings(userInput, true)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+		return "", err
+	}
+
+	var totalUnits float64
+
+	for _, holding := range holdingsOutputJson.Holdings {
+		err := LoadLatestCompaniesCompletePrice(holding.Companyid, appUtil.Db)
+		if err != nil {
+			return "", err
+		}
+		//latestPriceData := dailyPriceCacheLatest[holding.Companyid]
+		qty, errQty := strconv.ParseFloat(holding.Quantity, 64)
+		if errQty != nil {
+			appUtil.AppLogger.Println(errQty)
+			return "", errQty
+		}
+
+		buyPrice, errBuyPrice := strconv.ParseFloat(holding.BuyPrice, 64)
+		if errBuyPrice != nil {
+			appUtil.AppLogger.Println(errBuyPrice)
+			return "", errBuyPrice
+		}
+		totalUnits = totalUnits + ((buyPrice * qty) / 10)
+		appUtil.AppLogger.Println("totalUnits ")
+		appUtil.AppLogger.Println(totalUnits)
+	}
+	
 	return constants.AppSuccessCalculateReturn, nil
 }
 
