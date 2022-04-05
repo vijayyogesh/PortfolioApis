@@ -443,13 +443,25 @@ func FetchAllCompanies(userInput []byte) ([]data.Company, error) {
 /* 11) Calculate Return */
 func CalculateReturn(userInput []byte) (string, error) {
 	/* Get Current Holdings */
-	holdingsOutputJson, err := GetUserHoldings(userInput, true)
+	holdingsOutputJson, err := GetUserHoldings(userInput, false)
 	if err != nil {
 		appUtil.AppLogger.Println(err)
 		return "", err
 	}
 
 	var totalUnits float64
+
+	/* No of units * 10 => Total Buy Value
+	   No of units * NAV => Total Current Value */
+
+	var holdingsBuyDateMap = make(map[string][]data.Holdings)
+	for _, holding := range holdingsOutputJson.Holdings {
+		buyDate, _ := time.Parse("2006-01-02T15:04:05Z", holding.BuyDate)
+		dateStr := buyDate.Format("2006-01-02")
+		holdingsBuyDateMap[dateStr] = append(holdingsBuyDateMap[dateStr], holding)
+	}
+	appUtil.AppLogger.Println("holdingsBuyDateMap ")
+	appUtil.AppLogger.Println(holdingsBuyDateMap)
 
 	for _, holding := range holdingsOutputJson.Holdings {
 		err := LoadLatestCompaniesCompletePrice(holding.Companyid, appUtil.Db)
@@ -469,8 +481,8 @@ func CalculateReturn(userInput []byte) (string, error) {
 			return "", errBuyPrice
 		}
 		totalUnits = totalUnits + ((buyPrice * qty) / 10)
-		appUtil.AppLogger.Println("totalUnits ")
-		appUtil.AppLogger.Println(totalUnits)
+		//appUtil.AppLogger.Println("totalUnits ")
+		//appUtil.AppLogger.Println(totalUnits)
 	}
 	
 	return constants.AppSuccessCalculateReturn, nil
