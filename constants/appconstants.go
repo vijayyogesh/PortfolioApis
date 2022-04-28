@@ -32,6 +32,7 @@ const (
 	AppRouteUpdateSelectedCompanies string = "/PortfolioApis/updateselectedcompanies"
 	AppRouteFetchAllCompanies       string = "/PortfolioApis/fetchallcompanies"
 	AppRouteCalculateReturn         string = "/PortfolioApis/calculatereturn"
+	AppRouteCalculateIndexSIPReturn string = "/PortfolioApis/calculateindexsipreturn"
 
 	/* Auth/JWT */
 	AppJWTAudience = "ApiUsers"

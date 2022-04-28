@@ -488,6 +488,15 @@ func CalculateReturn(userInput []byte) (string, error) {
 	return constants.AppSuccessCalculateReturn, nil
 }
 
+/* 12) Calculate Index SIP Return */
+func CalculateIndexSIPReturn(userInput []byte) (string, error) {
+	FetchCompaniesCompletePrice("NSEI", appUtil.Db)
+	latestPriceRecords := dailyPriceCache["NSEI"]
+	appUtil.AppLogger.Println("Latest Price Records")
+	appUtil.AppLogger.Println(latestPriceRecords)
+	return "", nil
+}
+
 /* ROUTER METHODS END */
 /* -------------------------------------- */
 

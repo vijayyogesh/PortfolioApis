@@ -185,6 +185,14 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 		} else {
 			json.NewEncoder(w).Encode(resp)
 		}
+	} else if (r.URL.Path == constants.AppRouteCalculateIndexSIPReturn) && (r.Method == http.MethodPost) {
+		/* Route to calculate SIP Index */
+		resp, err := processor.CalculateIndexSIPReturn(payload)
+		if err != nil {
+			json.NewEncoder(w).Encode(constants.AppErrCalculateReturn)
+		} else {
+			json.NewEncoder(w).Encode(resp)
+		}
 	}
 
 }

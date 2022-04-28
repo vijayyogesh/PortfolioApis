@@ -40,6 +40,7 @@ func main() {
 	http.Handle(constants.AppRouteUpdateSelectedCompanies, *appC)
 	http.Handle(constants.AppRouteFetchAllCompanies, *appC)
 	http.Handle(constants.AppRouteCalculateReturn, *appC)
+	http.Handle(constants.AppRouteCalculateIndexSIPReturn, *appC)
 
 	appUtil.AppLogger.Println("----- STARTED PORTFOLIO APIS -----")
 
