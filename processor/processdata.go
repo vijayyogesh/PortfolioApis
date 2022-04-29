@@ -142,12 +142,12 @@ func AddUserHoldings(userInput []byte) string {
 				return constants.AppErrAddUserHoldings
 			}
 
-			if (qty < 0) {
+			if qty < 0 {
 				value := -qty * sellPrice
 				holdingsNTCash := data.HoldingsNonTracked{
-					SecurityId: "CASH", 
-					BuyDate: company.BuyDate,
-					BuyValue: fmt.Sprintf("%f", value),
+					SecurityId:   "CASH",
+					BuyDate:      company.BuyDate,
+					BuyValue:     fmt.Sprintf("%f", value),
 					CurrentValue: fmt.Sprintf("%f", value),
 					InterestRate: "0",
 				}
@@ -156,7 +156,7 @@ func AddUserHoldings(userInput []byte) string {
 		}
 
 		/* Push data to DB */
-		err := data.AddUserHoldingsDB(holdingsInput, appUtil.Db)		
+		err := data.AddUserHoldingsDB(holdingsInput, appUtil.Db)
 		if err != nil {
 			appUtil.AppLogger.Println(err)
 			return constants.AppErrAddUserHoldings
@@ -194,7 +194,7 @@ func GetUserHoldings(userInput []byte, aggregateHoldings bool) (data.HoldingsOut
 		return userHoldings, errCalc
 	}
 
-	if(aggregateHoldings){
+	if aggregateHoldings {
 		aggregatedHoldings, err := AggregateHoldings(userHoldings)
 		if err != nil {
 			return userHoldings, err
@@ -242,7 +242,7 @@ func GetModelPortfolio(userInput []byte) (data.ModelPortfolio, error) {
 	}
 
 	if isUserPresent {
-		modelPf, err := data.GetModelPortfolioDB(user.UserId, appUtil.Db)		
+		modelPf, err := data.GetModelPortfolioDB(user.UserId, appUtil.Db)
 		if err != nil {
 			appUtil.AppLogger.Println(err)
 			return modelPortfolio, err
@@ -373,27 +373,27 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 			for buyDate.Before(time.Now()) {
 				dateStr := buyDate.Format("2006-01-02")
 				dailyData, ok := dailyPriceRecordsMap[dateStr]
-				if (ok && dailyData.CloseVal != 0) {
-					networthVal := float64(int((networthMap[dateStr] + (dailyData.CloseVal * qty)) * 100)) / 100
+				if ok && dailyData.CloseVal != 0 {
+					networthVal := float64(int((networthMap[dateStr]+(dailyData.CloseVal*qty))*100)) / 100
 					networthMap[dateStr] = networthVal
 					trackedHoldingsMap[dateStr] = networthVal
-				} else{
+				} else {
 					/* As prices are zero on Holidays */
 					isZero := true
 					buyDateCopy := buyDate
-					for (isZero) {
+					for isZero {
 						previousDate := buyDateCopy.AddDate(0, 0, -1)
 						previousDateStr := previousDate.Format("2006-01-02")
 						dailyDataCopy, ok := dailyPriceRecordsMap[previousDateStr]
-						if (ok && dailyDataCopy.CloseVal != 0) {
-							networthVal := float64(int((networthMap[dateStr] + (dailyDataCopy.CloseVal * qty)) * 100)) / 100
+						if ok && dailyDataCopy.CloseVal != 0 {
+							networthVal := float64(int((networthMap[dateStr]+(dailyDataCopy.CloseVal*qty))*100)) / 100
 							networthMap[dateStr] = networthVal
 							trackedHoldingsMap[dateStr] = networthVal
 							isZero = false
 							break
 						}
-						buyDateCopy = previousDate						
-					}					
+						buyDateCopy = previousDate
+					}
 				}
 				buyDate = buyDate.AddDate(0, 0, 1)
 				allocationMap[dateStr] = (trackedHoldingsMap[dateStr] / networthMap[dateStr]) * 100
@@ -411,15 +411,15 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 
 		for buyDate.Before(time.Now()) {
 			dateStr := buyDate.Format("2006-01-02")
-			currVal, parseErr := strconv.ParseFloat(holdingsNt.CurrentValue, 64)			
+			currVal, parseErr := strconv.ParseFloat(holdingsNt.CurrentValue, 64)
 			if parseErr != nil {
 				appUtil.AppLogger.Println(parseErr)
 				return combinedOutputMap, parseErr
 			}
 
-			networthVal := float64(int( (networthMap[dateStr] + currVal) * 100)) / 100
+			networthVal := float64(int((networthMap[dateStr]+currVal)*100)) / 100
 			networthMap[dateStr] = networthVal
-			nonTrackedHoldingsMap[dateStr] = float64(int( (nonTrackedHoldingsMap[dateStr] + currVal) * 100)) / 100
+			nonTrackedHoldingsMap[dateStr] = float64(int((nonTrackedHoldingsMap[dateStr]+currVal)*100)) / 100
 
 			buyDate = buyDate.AddDate(0, 0, 1)
 
@@ -484,16 +484,50 @@ func CalculateReturn(userInput []byte) (string, error) {
 		//appUtil.AppLogger.Println("totalUnits ")
 		//appUtil.AppLogger.Println(totalUnits)
 	}
-	
+
 	return constants.AppSuccessCalculateReturn, nil
 }
 
 /* 12) Calculate Index SIP Return */
 func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 	FetchCompaniesCompletePrice("NSEI", appUtil.Db)
-	latestPriceRecords := dailyPriceCache["NSEI"]
+	dailyPriceRecordsMap := dailyPriceCache["NSEI"]
+
+	var sipReturnInput data.SIPReturnInput
+	err := json.Unmarshal(userInput, &sipReturnInput)
+
+	if err == nil {
+		appUtil.AppLogger.Println("SIPReturnInput")
+		appUtil.AppLogger.Println(sipReturnInput)
+	}
+
+	var dates []time.Time
+	startDateStr := sipReturnInput.SIPReturnInputParam.StartDate
+	endDateStr := sipReturnInput.SIPReturnInputParam.EndDate
+
+	startDate, _ := time.Parse("2006/01/02", startDateStr)
+	appUtil.AppLogger.Println(startDate)
+
+	endDate, _ := time.Parse("2006/01/02", endDateStr)
+	appUtil.AppLogger.Println(endDate)
+
+	for startDate.Before(endDate) {
+		dates = append(dates, startDate)
+		startDate = startDate.AddDate(0, 1, 0)
+	}
+
+	appUtil.AppLogger.Println("Dates - ")
+	appUtil.AppLogger.Println(dates)
+
+	/*dailyData, ok := dailyPriceRecordsMap[dateStr]
+	if (ok && dailyData.CloseVal != 0) {
+		networthVal := float64(int((networthMap[dateStr] + (dailyData.CloseVal * qty)) * 100)) / 100
+					networthMap[dateStr] = networthVal
+					trackedHoldingsMap[dateStr] = networthVal
+				}*/
+
 	appUtil.AppLogger.Println("Latest Price Records")
-	appUtil.AppLogger.Println(latestPriceRecords)
+	appUtil.AppLogger.Println(dailyPriceRecordsMap)
 	return "", nil
 }
 
@@ -553,13 +587,13 @@ func DownloadDataAsync(companiesData []data.Company) {
 func DownloadDataFile(companyId string, fromTime time.Time) error {
 	filePath := ""
 	url := ""
-	if(strings.Contains(companyId, constants.AppDataPrefixMF)){
+	if strings.Contains(companyId, constants.AppDataPrefixMF) {
 		filePath = appUtil.Config.AppDataDir + companyId + constants.AppDataPricesFileSuffixMF
 		url = constants.AppDataPricesUrl + companyId + constants.AppDataPricesUrlSuffixMF
-	} else  if(strings.Compare(companyId, constants.AppDataBenchmarkNSE) == 0){
+	} else if strings.Compare(companyId, constants.AppDataBenchmarkNSE) == 0 {
 		filePath = appUtil.Config.AppDataDir + companyId + constants.AppDataCsv
 		url = constants.AppDataPricesUrl + constants.AppDataBenchmarkAppenderText + companyId + constants.AppDataBenchmarkPricesUrlSuffix
-	} else{
+	} else {
 		filePath = appUtil.Config.AppDataDir + companyId + constants.AppDataPricesFileSuffix
 		url = constants.AppDataPricesUrl + companyId + constants.AppDataPricesUrlSuffix
 	}
@@ -610,14 +644,14 @@ func LoadPriceData(db *sql.DB) {
 		for _, company := range companies {
 			wg.Add(1)
 			filePath := ""
-			if(strings.Contains(company.CompanyId, constants.AppDataPrefixMF)){
+			if strings.Contains(company.CompanyId, constants.AppDataPrefixMF) {
 				filePath = appUtil.Config.AppDataDir + company.CompanyId + constants.AppDataPricesFileSuffixMF
-			} else if(strings.Compare(company.CompanyId, constants.AppDataBenchmarkNSE) == 0){
-				filePath = appUtil.Config.AppDataDir + company.CompanyId +  constants.AppDataCsv
+			} else if strings.Compare(company.CompanyId, constants.AppDataBenchmarkNSE) == 0 {
+				filePath = appUtil.Config.AppDataDir + company.CompanyId + constants.AppDataCsv
 			} else {
 				filePath = appUtil.Config.AppDataDir + company.CompanyId + constants.AppDataPricesFileSuffix
 			}
-			
+
 			go func(companyid string) {
 				defer wg.Done()
 				var err error
@@ -710,7 +744,7 @@ func processDataErr(dataError error, k int, companyid string) {
 /* Fetch All Price Data initially from DB and use cache for subsequent requests */
 func FetchCompaniesCompletePrice(companyid string, db *sql.DB) map[string]data.CompaniesPriceData {
 	var dailyPriceRecordsMap map[string]data.CompaniesPriceData = make(map[string]data.CompaniesPriceData)
-	if (dailyPriceCache[companyid] != nil ) {
+	if dailyPriceCache[companyid] != nil {
 		appUtil.AppLogger.Println("FetchCompaniesCompletePrice - From Cache")
 		dailyPriceRecordsMap = dailyPriceCache[companyid]
 	} else {
@@ -721,7 +755,7 @@ func FetchCompaniesCompletePrice(companyid string, db *sql.DB) map[string]data.C
 			dailyPriceRecordsMap[dateStr] = priceData
 		}
 		dailyPriceCache[companyid] = dailyPriceRecordsMap
-		
+
 	}
 	return dailyPriceRecordsMap
 }
@@ -729,7 +763,7 @@ func FetchCompaniesCompletePrice(companyid string, db *sql.DB) map[string]data.C
 /* Load Latest Price Data from DB and use cache for subsequent requests */
 func LoadLatestCompaniesCompletePrice(companyid string, db *sql.DB) error {
 
-	if _, ok := dailyPriceCacheLatest[companyid]; ok  {
+	if _, ok := dailyPriceCacheLatest[companyid]; ok {
 		appUtil.AppLogger.Println("LoadLatestCompaniesCompletePrice - Price data already in Cache")
 	} else {
 		appUtil.AppLogger.Println("LoadLatestCompaniesCompletePrice - Loading Price Data From DB to Cache")
@@ -956,7 +990,7 @@ func AggregateHoldings(userHoldings data.HoldingsOutputJson) ([]data.Holdings, e
 
 			aggregatedQty := holdingMapQty + holdingQty
 
-			if(holdingQty > 0) {
+			if holdingQty > 0 {
 				aggregatedBuyVal = (holdingMapQty * holdingMapBuyPrice) + (holdingQty * holdingBuyPrice)
 				aggregatedBuyPrice = aggregatedBuyVal / aggregatedQty
 			} else {

@@ -48,7 +48,7 @@ type HoldingsOutputJson struct {
 
 type Holdings struct {
 	Companyid    string `json:"companyid"`
-	CompanyName    string `json:"companyName"`
+	CompanyName  string `json:"companyName"`
 	Quantity     string `json:"quantity"`
 	BuyDate      string `json:"buyDate"`
 	BuyPrice     string `json:"buyPrice"`
@@ -105,6 +105,17 @@ type NetworthOnADate struct {
 type CompaniesInput struct {
 	UserID  string    `json:"userId"`
 	Company []Company `json:"Company"`
+}
+
+type SIPReturnInputParam struct {
+	StartDate string `json:"startdate"`
+	EndDate   string `json:"enddate"`
+	SIPAmount string `json:"sipamount"`
+}
+
+type SIPReturnInput struct {
+	UserID              string              `json:"userId"`
+	SIPReturnInputParam SIPReturnInputParam `json:"sipParams"`
 }
 
 func LoadPriceDataDB(dailyPriceRecords []CompaniesPriceData, db *sql.DB) error {
