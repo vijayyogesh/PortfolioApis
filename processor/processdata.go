@@ -14,6 +14,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/alpeb/go-finance/fin"
+
 	"github.com/vijayyogesh/PortfolioApis/constants"
 	"github.com/vijayyogesh/PortfolioApis/data"
 	"github.com/vijayyogesh/PortfolioApis/util"
@@ -502,8 +504,10 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 	}
 
 	var dates []time.Time
+	var values []float64
 	startDateStr := sipReturnInput.SIPReturnInputParam.StartDate
 	endDateStr := sipReturnInput.SIPReturnInputParam.EndDate
+	sipAmountStr := sipReturnInput.SIPReturnInputParam.SIPAmount
 
 	startDate, _ := time.Parse("2006/01/02", startDateStr)
 	appUtil.AppLogger.Println(startDate)
@@ -511,20 +515,51 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 	endDate, _ := time.Parse("2006/01/02", endDateStr)
 	appUtil.AppLogger.Println(endDate)
 
+	sipAmount, _ := strconv.ParseFloat(sipAmountStr, 64)
+	qty := 0.0
+	finalCloseVal := 0.0
+
 	for startDate.Before(endDate) {
 		dates = append(dates, startDate)
 		startDate = startDate.AddDate(0, 1, 0)
+		closeVal := dailyPriceRecordsMap[startDate.Format("2006-01-02")].CloseVal
+
+		for closeVal < 1 {
+			startDate = startDate.AddDate(0, 0, 1)
+			appUtil.AppLogger.Println("StartDate - ")
+			appUtil.AppLogger.Println(startDate)
+			closeVal = dailyPriceRecordsMap[startDate.Format("2006-01-02")].CloseVal
+			appUtil.AppLogger.Println("closeVal - ")
+			appUtil.AppLogger.Println(closeVal)
+		}
+
+		qty = qty + (sipAmount / closeVal)
+		values = append(values, -sipAmount)
+
+		finalCloseVal = closeVal
 	}
+
+	appUtil.AppLogger.Println("Qty - ")
+	appUtil.AppLogger.Println(qty)
+
+	appUtil.AppLogger.Println("finalCloseVal - ")
+	appUtil.AppLogger.Println(finalCloseVal)
+
+	dates = append(dates, endDate)
+	values = append(values, qty*finalCloseVal)
 
 	appUtil.AppLogger.Println("Dates - ")
 	appUtil.AppLogger.Println(dates)
 
-	/*dailyData, ok := dailyPriceRecordsMap[dateStr]
-	if (ok && dailyData.CloseVal != 0) {
-		networthVal := float64(int((networthMap[dateStr] + (dailyData.CloseVal * qty)) * 100)) / 100
-					networthMap[dateStr] = networthVal
-					trackedHoldingsMap[dateStr] = networthVal
-				}*/
+	appUtil.AppLogger.Println("Values - ")
+	appUtil.AppLogger.Println(values)
+
+	xirr, err := fin.ScheduledInternalRateOfReturn(values, dates, 0.0)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+	}
+	appUtil.AppLogger.Println("XIRR - ")
+	appUtil.AppLogger.Println(xirr)
 
 	appUtil.AppLogger.Println("Latest Price Records")
 	appUtil.AppLogger.Println(dailyPriceRecordsMap)

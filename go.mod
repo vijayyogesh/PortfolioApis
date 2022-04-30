@@ -8,6 +8,8 @@ require github.com/robfig/cron/v3 v3.0.0
 
 require github.com/dgrijalva/jwt-go v3.2.0+incompatible
 
+require github.com/alpeb/go-finance v0.0.0-20211202201625-e4f601ef4382
+
 require (
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
