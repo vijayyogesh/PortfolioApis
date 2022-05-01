@@ -118,6 +118,14 @@ type SIPReturnInput struct {
 	SIPReturnInputParam SIPReturnInputParam `json:"sipParams"`
 }
 
+type SIPReturnSubPeriod struct {
+	Quantity        string `json:"quantity"`
+	EndDate         string `json:"enddate"`
+	TotalInvestment string `json:"totalInvestment"`
+	TotalEndValue   string `json:"totalEndValue"`
+	Xirr            string `json:"xirr"`
+}
+
 func LoadPriceDataDB(dailyPriceRecords []CompaniesPriceData, db *sql.DB) error {
 	valueStrings := make([]string, 0, len(dailyPriceRecords))
 	valueArgs := make([]interface{}, 0, len(dailyPriceRecords)*6)

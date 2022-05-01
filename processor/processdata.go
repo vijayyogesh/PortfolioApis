@@ -503,8 +503,11 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 		appUtil.AppLogger.Println(sipReturnInput)
 	}
 
+	var sipReturnOutput []data.SIPReturnSubPeriod
+	var sipReturnSubPeriod data.SIPReturnSubPeriod
 	var dates []time.Time
 	var values []float64
+	var periodCount int64
 	startDateStr := sipReturnInput.SIPReturnInputParam.StartDate
 	endDateStr := sipReturnInput.SIPReturnInputParam.EndDate
 	sipAmountStr := sipReturnInput.SIPReturnInputParam.SIPAmount
@@ -523,12 +526,13 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 		dates = append(dates, startDate)
 		startDate = startDate.AddDate(0, 1, 0)
 		closeVal := dailyPriceRecordsMap[startDate.Format("2006-01-02")].CloseVal
+		startDateUpdated := startDate
 
 		for closeVal < 1 {
-			startDate = startDate.AddDate(0, 0, 1)
-			appUtil.AppLogger.Println("StartDate - ")
-			appUtil.AppLogger.Println(startDate)
-			closeVal = dailyPriceRecordsMap[startDate.Format("2006-01-02")].CloseVal
+			startDateUpdated = startDateUpdated.AddDate(0, 0, 1)
+			appUtil.AppLogger.Println("startDateUpdated - ")
+			appUtil.AppLogger.Println(startDateUpdated)
+			closeVal = dailyPriceRecordsMap[startDateUpdated.Format("2006-01-02")].CloseVal
 			appUtil.AppLogger.Println("closeVal - ")
 			appUtil.AppLogger.Println(closeVal)
 		}
@@ -537,22 +541,42 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 		values = append(values, -sipAmount)
 
 		finalCloseVal = closeVal
+		xirrSubPeriod, errXirr := fin.ScheduledInternalRateOfReturn(append(values, qty*finalCloseVal), append(dates, startDate), 0.0)
+		if errXirr != nil {
+			appUtil.AppLogger.Println(errXirr)
+		}
+		appUtil.AppLogger.Println("XIRR SubPeriod - ")
+		appUtil.AppLogger.Println(xirrSubPeriod)
+
+		periodCount++
+
+		sipReturnSubPeriod.Quantity = fmt.Sprintf("%.2f", qty)
+		sipReturnSubPeriod.EndDate = startDate.Format("2006-01-02")
+		sipReturnSubPeriod.TotalEndValue = fmt.Sprintf("%.2f", qty*finalCloseVal)
+		sipReturnSubPeriod.Xirr = fmt.Sprintf("%.2f", xirrSubPeriod*100)
+		sipReturnSubPeriod.TotalInvestment = fmt.Sprintf("%.2f", float64(periodCount*int64(sipAmount)))
+		sipReturnOutput = append(sipReturnOutput, sipReturnSubPeriod)
 	}
 
-	appUtil.AppLogger.Println("Qty - ")
+	appUtil.AppLogger.Println("sipReturnOutput - ")
+	for _, sipReturnSubPeriod := range sipReturnOutput {
+		appUtil.AppLogger.Println(sipReturnSubPeriod)
+	}
+
+	/*appUtil.AppLogger.Println("Qty - ")
 	appUtil.AppLogger.Println(qty)
 
 	appUtil.AppLogger.Println("finalCloseVal - ")
-	appUtil.AppLogger.Println(finalCloseVal)
+	appUtil.AppLogger.Println(finalCloseVal)*/
 
 	dates = append(dates, endDate)
 	values = append(values, qty*finalCloseVal)
 
-	appUtil.AppLogger.Println("Dates - ")
+	/*appUtil.AppLogger.Println("Dates - ")
 	appUtil.AppLogger.Println(dates)
 
 	appUtil.AppLogger.Println("Values - ")
-	appUtil.AppLogger.Println(values)
+	appUtil.AppLogger.Println(values)*/
 
 	xirr, err := fin.ScheduledInternalRateOfReturn(values, dates, 0.0)
 	if err != nil {
@@ -561,8 +585,8 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 	appUtil.AppLogger.Println("XIRR - ")
 	appUtil.AppLogger.Println(xirr)
 
-	appUtil.AppLogger.Println("Latest Price Records")
-	appUtil.AppLogger.Println(dailyPriceRecordsMap)
+	/*appUtil.AppLogger.Println("Latest Price Records")
+	appUtil.AppLogger.Println(dailyPriceRecordsMap) */
 	return "", nil
 }
 
