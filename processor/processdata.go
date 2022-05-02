@@ -492,9 +492,6 @@ func CalculateReturn(userInput []byte) (string, error) {
 
 /* 12) Calculate Index SIP Return */
 func CalculateIndexSIPReturn(userInput []byte) (string, error) {
-	FetchCompaniesCompletePrice("NSEI", appUtil.Db)
-	dailyPriceRecordsMap := dailyPriceCache["NSEI"]
-
 	var sipReturnInput data.SIPReturnInput
 	err := json.Unmarshal(userInput, &sipReturnInput)
 
@@ -511,6 +508,10 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 	startDateStr := sipReturnInput.SIPReturnInputParam.StartDate
 	endDateStr := sipReturnInput.SIPReturnInputParam.EndDate
 	sipAmountStr := sipReturnInput.SIPReturnInputParam.SIPAmount
+	companyId := sipReturnInput.SIPReturnInputParam.Companyid
+
+	FetchCompaniesCompletePrice(companyId, appUtil.Db)
+	dailyPriceRecordsMap := dailyPriceCache[companyId]
 
 	startDate, _ := time.Parse("2006/01/02", startDateStr)
 	appUtil.AppLogger.Println(startDate)
@@ -555,6 +556,7 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 		sipReturnSubPeriod.TotalEndValue = fmt.Sprintf("%.2f", qty*finalCloseVal)
 		sipReturnSubPeriod.Xirr = fmt.Sprintf("%.2f", xirrSubPeriod*100)
 		sipReturnSubPeriod.TotalInvestment = fmt.Sprintf("%.2f", float64(periodCount*int64(sipAmount)))
+		sipReturnSubPeriod.BuyVal = fmt.Sprintf("%.2f", finalCloseVal)
 		sipReturnOutput = append(sipReturnOutput, sipReturnSubPeriod)
 	}
 

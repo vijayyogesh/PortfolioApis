@@ -108,6 +108,7 @@ type CompaniesInput struct {
 }
 
 type SIPReturnInputParam struct {
+	Companyid string `json:"companyid"`
 	StartDate string `json:"startdate"`
 	EndDate   string `json:"enddate"`
 	SIPAmount string `json:"sipamount"`
@@ -124,6 +125,7 @@ type SIPReturnSubPeriod struct {
 	TotalInvestment string `json:"totalInvestment"`
 	TotalEndValue   string `json:"totalEndValue"`
 	Xirr            string `json:"xirr"`
+	BuyVal          string `json:"buyval"`
 }
 
 func LoadPriceDataDB(dailyPriceRecords []CompaniesPriceData, db *sql.DB) error {
