@@ -128,6 +128,15 @@ type SIPReturnSubPeriod struct {
 	BuyVal          string `json:"buyval"`
 }
 
+type SIPReturnBracket struct {
+	LessThanZeroCount   string `json:"lessThanZeroCount"`
+	ZeroToTwoCount      string `json:"zeroToTwoCount"`
+	TwoToFiveCount      string `json:"twoToFiveCount"`
+	FiveToSevenCount    string `json:"fiveToSevenCount"`
+	SevenToTenCount     string `json:"sevenToTenCount"`
+	GreaterThanTenCount string `json:"greaterThanTenCount"`
+}
+
 func LoadPriceDataDB(dailyPriceRecords []CompaniesPriceData, db *sql.DB) error {
 	valueStrings := make([]string, 0, len(dailyPriceRecords))
 	valueArgs := make([]interface{}, 0, len(dailyPriceRecords)*6)

@@ -565,6 +565,56 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 		appUtil.AppLogger.Println(sipReturnSubPeriod)
 	}
 
+	var lessThanZeroCount float64
+	var zeroToTwoCount float64
+	var twoToFiveCount float64
+	var fiveToSevenCount float64
+	var sevenToTenCount float64
+	var greaterThanTenCount float64
+	for _, sipReturnSubPeriod := range sipReturnOutput {
+		xirrVal, _ := strconv.ParseFloat(sipReturnSubPeriod.Xirr, 64)
+		if xirrVal <= 0 {
+			lessThanZeroCount++
+		} else if xirrVal > 0 && xirrVal <= 2.5 {
+			zeroToTwoCount++
+		} else if xirrVal > 2.5 && xirrVal <= 5 {
+			twoToFiveCount++
+		} else if xirrVal > 5 && xirrVal <= 7.5 {
+			fiveToSevenCount++
+		} else if xirrVal > 7.5 && xirrVal <= 10 {
+			sevenToTenCount++
+		} else if xirrVal > 10 {
+			greaterThanTenCount++
+		}
+	}
+
+	var sipReturnBracket data.SIPReturnBracket
+	sipReturnBracket.LessThanZeroCount = fmt.Sprintf("%.2f", lessThanZeroCount/float64(periodCount)*100)
+	sipReturnBracket.ZeroToTwoCount = fmt.Sprintf("%.2f", zeroToTwoCount/float64(periodCount)*100)
+	sipReturnBracket.TwoToFiveCount = fmt.Sprintf("%.2f", twoToFiveCount/float64(periodCount)*100)
+	sipReturnBracket.FiveToSevenCount = fmt.Sprintf("%.2f", fiveToSevenCount/float64(periodCount)*100)
+	sipReturnBracket.SevenToTenCount = fmt.Sprintf("%.2f", sevenToTenCount/float64(periodCount)*100)
+	sipReturnBracket.GreaterThanTenCount = fmt.Sprintf("%.2f", greaterThanTenCount/float64(periodCount)*100)
+
+	appUtil.AppLogger.Println("PeriodCount - ")
+	appUtil.AppLogger.Println(periodCount)
+
+	appUtil.AppLogger.Println("sipReturnBracket - ")
+	appUtil.AppLogger.Println(sipReturnBracket)
+
+	/*appUtil.AppLogger.Println("Less Than zero - ")
+	appUtil.AppLogger.Println(lessThanZeroCount)
+	appUtil.AppLogger.Println("0 to 2.5 - ")
+	appUtil.AppLogger.Println(zeroToTwoCount)
+	appUtil.AppLogger.Println("2.5 to 5 - ")
+	appUtil.AppLogger.Println(twoToFiveCount)
+	appUtil.AppLogger.Println("5 to 7.5 - ")
+	appUtil.AppLogger.Println(FiveToSevenCount)
+	appUtil.AppLogger.Println("7.5 to 10 - ")
+	appUtil.AppLogger.Println(sevenToTenCount)
+	appUtil.AppLogger.Println("Greater than 10 - ")
+	appUtil.AppLogger.Println(greaterThanTenCount) */
+
 	/*appUtil.AppLogger.Println("Qty - ")
 	appUtil.AppLogger.Println(qty)
 
