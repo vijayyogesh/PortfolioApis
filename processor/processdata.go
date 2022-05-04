@@ -491,7 +491,7 @@ func CalculateReturn(userInput []byte) (string, error) {
 }
 
 /* 12) Calculate Index SIP Return */
-func CalculateIndexSIPReturn(userInput []byte) (string, error) {
+func CalculateIndexSIPReturn(userInput []byte) (data.SIPReturnOutput, error) {
 	var sipReturnInput data.SIPReturnInput
 	err := json.Unmarshal(userInput, &sipReturnInput)
 
@@ -500,7 +500,8 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 		appUtil.AppLogger.Println(sipReturnInput)
 	}
 
-	var sipReturnOutput []data.SIPReturnSubPeriod
+	var sipReturnOutput data.SIPReturnOutput
+	var sipReturnSubPeriodArr []data.SIPReturnSubPeriod
 	var sipReturnSubPeriod data.SIPReturnSubPeriod
 	var dates []time.Time
 	var values []float64
@@ -525,7 +526,7 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 
 	for startDate.Before(endDate) {
 		dates = append(dates, startDate)
-		startDate = startDate.AddDate(0, 1, 0)
+
 		closeVal := dailyPriceRecordsMap[startDate.Format("2006-01-02")].CloseVal
 		startDateUpdated := startDate
 
@@ -557,11 +558,13 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 		sipReturnSubPeriod.Xirr = fmt.Sprintf("%.2f", xirrSubPeriod*100)
 		sipReturnSubPeriod.TotalInvestment = fmt.Sprintf("%.2f", float64(periodCount*int64(sipAmount)))
 		sipReturnSubPeriod.BuyVal = fmt.Sprintf("%.2f", finalCloseVal)
-		sipReturnOutput = append(sipReturnOutput, sipReturnSubPeriod)
+		sipReturnSubPeriodArr = append(sipReturnSubPeriodArr, sipReturnSubPeriod)
+
+		startDate = startDate.AddDate(0, 1, 0)
 	}
 
-	appUtil.AppLogger.Println("sipReturnOutput - ")
-	for _, sipReturnSubPeriod := range sipReturnOutput {
+	appUtil.AppLogger.Println("sipReturnSubPeriodArr - ")
+	for _, sipReturnSubPeriod := range sipReturnSubPeriodArr {
 		appUtil.AppLogger.Println(sipReturnSubPeriod)
 	}
 
@@ -571,7 +574,7 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 	var fiveToSevenCount float64
 	var sevenToTenCount float64
 	var greaterThanTenCount float64
-	for _, sipReturnSubPeriod := range sipReturnOutput {
+	for _, sipReturnSubPeriod := range sipReturnSubPeriodArr {
 		xirrVal, _ := strconv.ParseFloat(sipReturnSubPeriod.Xirr, 64)
 		if xirrVal <= 0 {
 			lessThanZeroCount++
@@ -596,8 +599,11 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 	sipReturnBracket.SevenToTenCount = fmt.Sprintf("%.2f", sevenToTenCount/float64(periodCount)*100)
 	sipReturnBracket.GreaterThanTenCount = fmt.Sprintf("%.2f", greaterThanTenCount/float64(periodCount)*100)
 
-	appUtil.AppLogger.Println("PeriodCount - ")
-	appUtil.AppLogger.Println(periodCount)
+	sipReturnOutput.SIPReturnBracket = sipReturnBracket
+	sipReturnOutput.SIPReturnSubPeriod = sipReturnSubPeriodArr
+
+	appUtil.AppLogger.Println("sipReturnOutput - ")
+	appUtil.AppLogger.Println(sipReturnOutput)
 
 	appUtil.AppLogger.Println("sipReturnBracket - ")
 	appUtil.AppLogger.Println(sipReturnBracket)
@@ -639,7 +645,7 @@ func CalculateIndexSIPReturn(userInput []byte) (string, error) {
 
 	/*appUtil.AppLogger.Println("Latest Price Records")
 	appUtil.AppLogger.Println(dailyPriceRecordsMap) */
-	return "", nil
+	return sipReturnOutput, nil
 }
 
 /* ROUTER METHODS END */

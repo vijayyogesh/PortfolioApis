@@ -119,6 +119,11 @@ type SIPReturnInput struct {
 	SIPReturnInputParam SIPReturnInputParam `json:"sipParams"`
 }
 
+type SIPReturnOutput struct {
+	SIPReturnSubPeriod []SIPReturnSubPeriod `json:"sipReturnSubPeriod"`
+	SIPReturnBracket   SIPReturnBracket     `json:"sipReturnBracket"`
+}
+
 type SIPReturnSubPeriod struct {
 	Quantity        string `json:"quantity"`
 	EndDate         string `json:"enddate"`
