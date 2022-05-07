@@ -510,6 +510,7 @@ func CalculateIndexSIPReturn(userInput []byte) (data.SIPReturnOutput, error) {
 	endDateStr := sipReturnInput.SIPReturnInputParam.EndDate
 	sipAmountStr := sipReturnInput.SIPReturnInputParam.SIPAmount
 	companyId := sipReturnInput.SIPReturnInputParam.Companyid
+	stepUpPct, _ := strconv.ParseFloat(sipReturnInput.SIPReturnInputParam.StepUpPct, 64)
 
 	FetchCompaniesCompletePrice(companyId, appUtil.Db)
 	dailyPriceRecordsMap := dailyPriceCache[companyId]
@@ -524,7 +525,7 @@ func CalculateIndexSIPReturn(userInput []byte) (data.SIPReturnOutput, error) {
 	qty := 0.0
 	finalCloseVal := 0.0
 
-	for startDate.Before(endDate) {
+	for startDate.Before(endDate) || startDate.Equal(endDate) {
 		dates = append(dates, startDate)
 
 		closeVal := dailyPriceRecordsMap[startDate.Format("2006-01-02")].CloseVal
@@ -532,11 +533,11 @@ func CalculateIndexSIPReturn(userInput []byte) (data.SIPReturnOutput, error) {
 
 		for closeVal < 1 {
 			startDateUpdated = startDateUpdated.AddDate(0, 0, 1)
-			appUtil.AppLogger.Println("startDateUpdated - ")
-			appUtil.AppLogger.Println(startDateUpdated)
+			//appUtil.AppLogger.Println("startDateUpdated - ")
+			//appUtil.AppLogger.Println(startDateUpdated)
 			closeVal = dailyPriceRecordsMap[startDateUpdated.Format("2006-01-02")].CloseVal
-			appUtil.AppLogger.Println("closeVal - ")
-			appUtil.AppLogger.Println(closeVal)
+			//appUtil.AppLogger.Println("closeVal - ")
+			//appUtil.AppLogger.Println(closeVal)
 		}
 
 		qty = qty + (sipAmount / closeVal)
@@ -547,8 +548,8 @@ func CalculateIndexSIPReturn(userInput []byte) (data.SIPReturnOutput, error) {
 		if errXirr != nil {
 			appUtil.AppLogger.Println(errXirr)
 		}
-		appUtil.AppLogger.Println("XIRR SubPeriod - ")
-		appUtil.AppLogger.Println(xirrSubPeriod)
+		//appUtil.AppLogger.Println("XIRR SubPeriod - ")
+		//appUtil.AppLogger.Println(xirrSubPeriod)
 
 		periodCount++
 
@@ -561,6 +562,12 @@ func CalculateIndexSIPReturn(userInput []byte) (data.SIPReturnOutput, error) {
 		sipReturnSubPeriodArr = append(sipReturnSubPeriodArr, sipReturnSubPeriod)
 
 		startDate = startDate.AddDate(0, 1, 0)
+
+		if periodCount%12 == 0 {
+			sipAmount = sipAmount + (stepUpPct / 100 * sipAmount)
+			appUtil.AppLogger.Println("updated Sip Amount ")
+			appUtil.AppLogger.Println(sipAmount)
+		}
 	}
 
 	appUtil.AppLogger.Println("sipReturnSubPeriodArr - ")

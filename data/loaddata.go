@@ -112,6 +112,7 @@ type SIPReturnInputParam struct {
 	StartDate string `json:"startdate"`
 	EndDate   string `json:"enddate"`
 	SIPAmount string `json:"sipamount"`
+	StepUpPct string `json:"stepuppct"`
 }
 
 type SIPReturnInput struct {
