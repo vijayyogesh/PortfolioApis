@@ -351,6 +351,7 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 	var trackedHoldingsMap map[string]float64 = make(map[string]float64)
 	var nonTrackedHoldingsMap map[string]float64 = make(map[string]float64)
 	var allocationMap map[string]float64 = make(map[string]float64)
+	var benchMarkMap map[string]float64 = make(map[string]float64)
 
 	userHoldings, err := GetUserHoldings(userInput, false)
 	appUtil.AppLogger.Println(userHoldings)
@@ -360,7 +361,19 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 	}
 	for _, holdings := range userHoldings.Holdings {
 		dailyPriceRecordsMap := FetchCompaniesCompletePrice(holdings.Companyid, appUtil.Db)
+
+		/* Benchmark changes */
+		benchMarkRecordsMap := FetchCompaniesCompletePrice("NSEI", appUtil.Db)
+		holdingsQty, _ := strconv.ParseFloat(holdings.Quantity, 64)
+		holdingsBuyPrice, _ := strconv.ParseFloat(holdings.BuyPrice, 64)
+		holdingsBuyValue := holdingsBuyPrice * holdingsQty
+
 		buyDate, err := time.Parse("2006-01-02T15:04:05Z", holdings.BuyDate)
+
+		/* Benchmark changes */
+		bmDateStr := buyDate.Format("2006-01-02")
+		bmQty := holdingsBuyValue / benchMarkRecordsMap[bmDateStr].CloseVal
+
 		if err != nil {
 			appUtil.AppLogger.Println(err)
 			return combinedOutputMap, err
@@ -375,10 +388,18 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 			for buyDate.Before(time.Now()) {
 				dateStr := buyDate.Format("2006-01-02")
 				dailyData, ok := dailyPriceRecordsMap[dateStr]
+
+				/* Benchmark changes */
+				benchMarkData := benchMarkRecordsMap[dateStr]
+
 				if ok && dailyData.CloseVal != 0 {
 					networthVal := float64(int((networthMap[dateStr]+(dailyData.CloseVal*qty))*100)) / 100
 					networthMap[dateStr] = networthVal
 					trackedHoldingsMap[dateStr] = networthVal
+
+					/* Benchmark changes */
+					benchMarkVal := float64(int((benchMarkMap[dateStr]+(benchMarkData.CloseVal*bmQty))*100)) / 100
+					benchMarkMap[dateStr] = benchMarkVal
 				} else {
 					/* As prices are zero on Holidays */
 					isZero := true
@@ -387,11 +408,18 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 						previousDate := buyDateCopy.AddDate(0, 0, -1)
 						previousDateStr := previousDate.Format("2006-01-02")
 						dailyDataCopy, ok := dailyPriceRecordsMap[previousDateStr]
+
+						benchMarkDataCopy := benchMarkRecordsMap[previousDateStr]
+
 						if ok && dailyDataCopy.CloseVal != 0 {
 							networthVal := float64(int((networthMap[dateStr]+(dailyDataCopy.CloseVal*qty))*100)) / 100
 							networthMap[dateStr] = networthVal
 							trackedHoldingsMap[dateStr] = networthVal
 							isZero = false
+
+							/* Benchmark changes */
+							benchMarkVal := float64(int((benchMarkMap[dateStr]+(benchMarkDataCopy.CloseVal*bmQty))*100)) / 100
+							benchMarkMap[dateStr] = benchMarkVal
 							break
 						}
 						buyDateCopy = previousDate
@@ -431,6 +459,7 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 
 	combinedOutputMap["networth"] = networthMap
 	combinedOutputMap["equity"] = trackedHoldingsMap
+	combinedOutputMap["benchmark"] = benchMarkMap
 	combinedOutputMap["debt"] = nonTrackedHoldingsMap
 
 	appUtil.AppLogger.Println("Completed FetchNetWorthOverPeriods")
