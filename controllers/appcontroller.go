@@ -193,6 +193,14 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 		} else {
 			json.NewEncoder(w).Encode(resp)
 		}
+	} else if (r.URL.Path == constants.AppRouteCalculateATHforPF) && (r.Method == http.MethodPost) {
+		/* Route to calculate ATH for PF */
+		resp, err := processor.CalculateATHforPF(payload)
+		if err != nil {
+			json.NewEncoder(w).Encode(constants.AppErrCalculateATHforPF)
+		} else {
+			json.NewEncoder(w).Encode(resp)
+		}
 	}
 
 }

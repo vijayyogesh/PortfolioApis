@@ -33,6 +33,7 @@ const (
 	AppRouteFetchAllCompanies       string = "/PortfolioApis/fetchallcompanies"
 	AppRouteCalculateReturn         string = "/PortfolioApis/calculatereturn"
 	AppRouteCalculateIndexSIPReturn string = "/PortfolioApis/calculateindexsipreturn"
+	AppRouteCalculateATHforPF       string = "/PortfolioApis/calculateathforpf"
 
 	/* Auth/JWT */
 	AppJWTAudience = "ApiUsers"
@@ -89,6 +90,8 @@ const (
 	AppErrFetchAllCompanies     = "E211: Error while fetching all companies"
 	AppSuccessFetchAllCompanies = "Fetched all companies !!"
 
-	AppErrCalculateReturn     = "E211: Error while calculating return"
+	AppErrCalculateReturn     = "E212: Error while calculating return"
 	AppSuccessCalculateReturn = "Calculated Return Successfuly !!"
+
+	AppErrCalculateATHforPF = "E213: Error while calculating ATH for PF"
 )

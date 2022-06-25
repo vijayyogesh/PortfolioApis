@@ -25,6 +25,8 @@ var dailyPriceCache map[string]map[string]data.CompaniesPriceData = make(map[str
 
 var dailyPriceCacheLatest map[string]data.CompaniesPriceData = make(map[string]data.CompaniesPriceData)
 
+var companiesATHPriceCache map[string]data.CompaniesPriceData
+
 var companiesCache []data.Company
 
 var usersCache map[string]data.User = make(map[string]data.User)
@@ -684,6 +686,45 @@ func CalculateIndexSIPReturn(userInput []byte) (data.SIPReturnOutput, error) {
 	return sipReturnOutput, nil
 }
 
+/* 12) Calculate All Time High for Portfolio */
+func CalculateATHforPF(userInput []byte) (data.HoldingsOutputJson, error) {
+	var holdingsATHOutputJson data.HoldingsOutputJson
+	var netWorth float64
+
+	/* Get Current Holdings */
+	holdingsOutputJson, err := GetUserHoldings(userInput, true)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+	}
+
+	GetATHforCompanies()
+
+	if companiesATHPriceCache != nil {
+		for _, holding := range holdingsOutputJson.Holdings {
+			companyId := holding.Companyid
+			athPrice := companiesATHPriceCache[companyId].CloseVal
+			holding.LTP = fmt.Sprintf("%.2f", athPrice)
+
+			qty, _ := strconv.ParseFloat(holding.Quantity, 64)
+			holding.CurrentValue = fmt.Sprintf("%.2f", athPrice*qty)
+
+			holdingBuyPrice, _ := strconv.ParseFloat(holding.BuyPrice, 64)
+			holdingBuyVal := holdingBuyPrice * qty
+			holdingPL := ((athPrice * qty) - (holdingBuyPrice * qty))
+			holding.PL = fmt.Sprintf("%.2f", holdingPL)
+
+			holdingReturn := (holdingPL / holdingBuyVal) * 100
+			holding.NetPct = fmt.Sprintf("%.2f", holdingReturn)
+
+			netWorth = netWorth + (athPrice * qty)
+
+			holdingsATHOutputJson.Holdings = append(holdingsATHOutputJson.Holdings, holding)
+		}
+		holdingsATHOutputJson.Networth = fmt.Sprintf("%.2f", netWorth)
+	}
+	return holdingsATHOutputJson, nil
+}
+
 /* ROUTER METHODS END */
 /* -------------------------------------- */
 
@@ -1213,4 +1254,26 @@ func AggregateHoldings(userHoldings data.HoldingsOutputJson) ([]data.Holdings, e
 
 	return holdingsAggregated, nil
 
+}
+
+/* Fetch ATH of companies and store in cache map */
+func GetATHforCompanies() (map[string]data.CompaniesPriceData, error) {
+	var companiesATHMap map[string]data.CompaniesPriceData = make(map[string]data.CompaniesPriceData)
+
+	if companiesATHPriceCache != nil {
+		appUtil.AppLogger.Println("Fetching ATH for Companies From Cache")
+		return companiesATHPriceCache, nil
+	} else {
+		appUtil.AppLogger.Println("Fetching ATH for Companies From DB")
+		athRecords, err := data.FetchATHForCompaniesDB(appUtil.Db)
+		if err != nil {
+			return companiesATHMap, err
+		}
+
+		for _, companyData := range athRecords {
+			companiesATHMap[companyData.CompanyId] = companyData
+		}
+		companiesATHPriceCache = companiesATHMap
+		return companiesATHPriceCache, nil
+	}
 }

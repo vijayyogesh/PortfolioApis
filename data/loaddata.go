@@ -182,6 +182,25 @@ func FetchCompaniesCompletePriceDataDB(companyid string, db *sql.DB) []Companies
 	return dailyPriceRecords
 }
 
+/* Fetch All Price Data for a given company */
+func FetchATHForCompaniesDB(db *sql.DB) ([]CompaniesPriceData, error) {
+	var companyATHRecords []CompaniesPriceData
+	records, err := db.Query("SELECT COMPANY_ID, MAX(CLOSE_VAL) AS ATH FROM COMPANIES_PRICE_DATA GROUP BY COMPANY_ID ")
+	if err != nil {
+		return companyATHRecords, err
+	}
+	defer records.Close()
+	for records.Next() {
+		var dailyRecord CompaniesPriceData
+		err := records.Scan(&dailyRecord.CompanyId, &dailyRecord.CloseVal)
+		if err != nil {
+			return companyATHRecords, err
+		}
+		companyATHRecords = append(companyATHRecords, dailyRecord)
+	}
+	return companyATHRecords, nil
+}
+
 /* Fetch Latest Price Data for a given company */
 func FetchCompaniesLatestPriceDataDB(companyid string, db *sql.DB) (CompaniesPriceData, error) {
 	var dailyPriceRecords CompaniesPriceData
