@@ -392,7 +392,7 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 				dailyData, ok := dailyPriceRecordsMap[dateStr]
 
 				/* Benchmark changes */
-				benchMarkData := benchMarkRecordsMap[dateStr]
+				benchMarkData, bmDataExists := benchMarkRecordsMap[dateStr]
 
 				if ok && dailyData.CloseVal != 0 {
 					networthVal := float64(int((networthMap[dateStr]+(dailyData.CloseVal*qty))*100)) / 100
@@ -400,8 +400,14 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 					trackedHoldingsMap[dateStr] = networthVal
 
 					/* Benchmark changes */
-					benchMarkVal := float64(int((benchMarkMap[dateStr]+(benchMarkData.CloseVal*bmQty))*100)) / 100
-					benchMarkMap[dateStr] = benchMarkVal
+					if bmDataExists && benchMarkData.CloseVal != 0 {
+						benchMarkVal := float64(int((benchMarkMap[dateStr]+(benchMarkData.CloseVal*bmQty))*100)) / 100
+						benchMarkMap[dateStr] = benchMarkVal
+					} else {
+						previousDate := buyDate.AddDate(0, 0, -1)
+						previousDateStr := previousDate.Format("2006-01-02")
+						benchMarkMap[dateStr] = benchMarkMap[previousDateStr]
+					}
 				} else {
 					/* As prices are zero on Holidays */
 					isZero := true
@@ -411,7 +417,7 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 						previousDateStr := previousDate.Format("2006-01-02")
 						dailyDataCopy, ok := dailyPriceRecordsMap[previousDateStr]
 
-						benchMarkDataCopy := benchMarkRecordsMap[previousDateStr]
+						benchMarkDataCopy, bmDataExists := benchMarkRecordsMap[previousDateStr]
 
 						if ok && dailyDataCopy.CloseVal != 0 {
 							networthVal := float64(int((networthMap[dateStr]+(dailyDataCopy.CloseVal*qty))*100)) / 100
@@ -420,8 +426,13 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 							isZero = false
 
 							/* Benchmark changes */
-							benchMarkVal := float64(int((benchMarkMap[dateStr]+(benchMarkDataCopy.CloseVal*bmQty))*100)) / 100
-							benchMarkMap[dateStr] = benchMarkVal
+							if bmDataExists && benchMarkDataCopy.CloseVal != 0 {
+								benchMarkVal := float64(int((benchMarkMap[dateStr]+(benchMarkDataCopy.CloseVal*bmQty))*100)) / 100
+								benchMarkMap[dateStr] = benchMarkVal
+							} else {
+								benchMarkMap[dateStr] = benchMarkMap[previousDateStr]
+							}
+
 							break
 						}
 						buyDateCopy = previousDate
