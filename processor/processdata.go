@@ -798,6 +798,9 @@ func DownloadDataFile(companyId string, fromTime time.Time) error {
 	} else if strings.Compare(companyId, constants.AppDataBenchmarkNSE) == 0 {
 		filePath = appUtil.Config.AppDataDir + companyId + constants.AppDataCsv
 		url = constants.AppDataPricesUrl + constants.AppDataBenchmarkAppenderText + companyId + constants.AppDataBenchmarkPricesUrlSuffix
+	} else if strings.Contains(companyId, constants.AppDataBenchmarkBSE) {
+		filePath = appUtil.Config.AppDataDir + companyId + constants.AppDataPricesFileSuffixMF
+		url = constants.AppDataPricesUrl + companyId + constants.AppDataPricesUrlSuffixMF
 	} else {
 		filePath = appUtil.Config.AppDataDir + companyId + constants.AppDataPricesFileSuffix
 		url = constants.AppDataPricesUrl + companyId + constants.AppDataPricesUrlSuffix
@@ -853,6 +856,8 @@ func LoadPriceData(db *sql.DB) {
 				filePath = appUtil.Config.AppDataDir + company.CompanyId + constants.AppDataPricesFileSuffixMF
 			} else if strings.Compare(company.CompanyId, constants.AppDataBenchmarkNSE) == 0 {
 				filePath = appUtil.Config.AppDataDir + company.CompanyId + constants.AppDataCsv
+			} else if strings.Contains(company.CompanyId, constants.AppDataBenchmarkBSE) {
+				filePath = appUtil.Config.AppDataDir + company.CompanyId + constants.AppDataPricesFileSuffixMF
 			} else {
 				filePath = appUtil.Config.AppDataDir + company.CompanyId + constants.AppDataPricesFileSuffix
 			}

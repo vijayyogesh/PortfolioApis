@@ -49,6 +49,7 @@ const (
 	/* Below 4 constants added to support Index data from Yahoo finance*/
 	AppDataCsv                      = ".csv"
 	AppDataBenchmarkNSE             = "NSEI"
+	AppDataBenchmarkBSE             = "BSE-"
 	AppDataBenchmarkPricesUrlSuffix = "?period1=%s&period2=%s&interval=1d&events=history&includeAdjustedClose=true"
 	AppDataBenchmarkAppenderText    = "^"
 
