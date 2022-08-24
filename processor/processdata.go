@@ -575,11 +575,7 @@ func CalculateIndexSIPReturn(userInput []byte) (data.SIPReturnOutput, error) {
 
 		for closeVal < 1 {
 			startDateUpdated = startDateUpdated.AddDate(0, 0, 1)
-			//appUtil.AppLogger.Println("startDateUpdated - ")
-			//appUtil.AppLogger.Println(startDateUpdated)
 			closeVal = dailyPriceRecordsMap[startDateUpdated.Format("2006-01-02")].CloseVal
-			//appUtil.AppLogger.Println("closeVal - ")
-			//appUtil.AppLogger.Println(closeVal)
 		}
 
 		qty = qty + (sipAmount / closeVal)
@@ -590,8 +586,6 @@ func CalculateIndexSIPReturn(userInput []byte) (data.SIPReturnOutput, error) {
 		if errXirr != nil {
 			appUtil.AppLogger.Println(errXirr)
 		}
-		//appUtil.AppLogger.Println("XIRR SubPeriod - ")
-		//appUtil.AppLogger.Println(xirrSubPeriod)
 
 		periodCount++
 
@@ -657,33 +651,8 @@ func CalculateIndexSIPReturn(userInput []byte) (data.SIPReturnOutput, error) {
 	appUtil.AppLogger.Println("sipReturnBracket - ")
 	appUtil.AppLogger.Println(sipReturnBracket)
 
-	/*appUtil.AppLogger.Println("Less Than zero - ")
-	appUtil.AppLogger.Println(lessThanZeroCount)
-	appUtil.AppLogger.Println("0 to 2.5 - ")
-	appUtil.AppLogger.Println(zeroToTwoCount)
-	appUtil.AppLogger.Println("2.5 to 5 - ")
-	appUtil.AppLogger.Println(twoToFiveCount)
-	appUtil.AppLogger.Println("5 to 7.5 - ")
-	appUtil.AppLogger.Println(FiveToSevenCount)
-	appUtil.AppLogger.Println("7.5 to 10 - ")
-	appUtil.AppLogger.Println(sevenToTenCount)
-	appUtil.AppLogger.Println("Greater than 10 - ")
-	appUtil.AppLogger.Println(greaterThanTenCount) */
-
-	/*appUtil.AppLogger.Println("Qty - ")
-	appUtil.AppLogger.Println(qty)
-
-	appUtil.AppLogger.Println("finalCloseVal - ")
-	appUtil.AppLogger.Println(finalCloseVal)*/
-
 	dates = append(dates, endDate)
 	values = append(values, qty*finalCloseVal)
-
-	/*appUtil.AppLogger.Println("Dates - ")
-	appUtil.AppLogger.Println(dates)
-
-	appUtil.AppLogger.Println("Values - ")
-	appUtil.AppLogger.Println(values)*/
 
 	xirr, err := fin.ScheduledInternalRateOfReturn(values, dates, 0.0)
 	if err != nil {
@@ -692,12 +661,10 @@ func CalculateIndexSIPReturn(userInput []byte) (data.SIPReturnOutput, error) {
 	appUtil.AppLogger.Println("XIRR - ")
 	appUtil.AppLogger.Println(xirr)
 
-	/*appUtil.AppLogger.Println("Latest Price Records")
-	appUtil.AppLogger.Println(dailyPriceRecordsMap) */
 	return sipReturnOutput, nil
 }
 
-/* 12) Calculate All Time High for Portfolio */
+/* 13) Calculate All Time High for Portfolio */
 func CalculateATHforPF(userInput []byte) (data.HoldingsOutputJson, error) {
 	var holdingsATHOutputJson data.HoldingsOutputJson
 	var netWorth float64
@@ -734,6 +701,94 @@ func CalculateATHforPF(userInput []byte) (data.HoldingsOutputJson, error) {
 		holdingsATHOutputJson.Networth = fmt.Sprintf("%.2f", netWorth)
 	}
 	return holdingsATHOutputJson, nil
+}
+
+/* 14) Calculate xirr values for Portfolio from start date to Now */
+func CalculateXirrReturn(userInput []byte) (map[string]string, error) {
+
+	/* Output map with xirr values */
+	var xirrDateMap map[string]string = make(map[string]string)
+
+	/* Fetch Holdings grouped by Buy Date */
+	holdingsDateMap := GetHoldingsDateWiseMapForUser(userInput)
+	var holdingsDataAsOfDate []data.Holdings
+
+	startDate, _ := time.Parse("2006/01/02", "2021/11/24")
+	endDate := time.Now()
+
+	var dates []time.Time
+	var values []float64
+	finalCloseVal := 0.0
+	skipDate := false
+
+	/* Added for cases where prices are zero */
+	var latestDates []time.Time
+	var latestValues []float64
+	latestCloseVal := 0.0
+
+	/* Loop all dates from PF start date */
+	for startDate.Before(endDate) || startDate.Equal(endDate) {
+		startDateStr := startDate.Format("2006-01-02")
+
+		/* Append to user holdings when new buydate is available */
+		if _, ok := holdingsDateMap[startDateStr]; ok {
+			holdingsDataAsOfDate = append(holdingsDataAsOfDate, holdingsDateMap[startDateStr]...)
+		}
+
+		/* Loop Holdings and calculate value/portfolio value with prices of a particular day  */
+		for _, holding := range holdingsDataAsOfDate {
+			dailyPriceRecordsMap := FetchCompaniesCompletePrice(holding.Companyid, appUtil.Db)
+
+			closeVal := dailyPriceRecordsMap[startDate.Format("2006-01-02")].CloseVal
+			holdingBuyPrice, _ := strconv.ParseFloat(holding.BuyPrice, 64)
+			qty, _ := strconv.ParseFloat(holding.Quantity, 64)
+			buyDate, _ := time.Parse("2006-01-02T15:04:05Z", holding.BuyDate)
+			finalCloseVal = finalCloseVal + (qty * closeVal)
+
+			if closeVal < 1 {
+				skipDate = true
+				break
+			}
+
+			values = append(values, qty*-holdingBuyPrice)
+			dates = append(dates, buyDate)
+		}
+
+		if skipDate {
+			/* When prices are zero/holidays, use latest available values with start date */
+			xirrSubPeriod, errXirr := fin.ScheduledInternalRateOfReturn(append(latestValues, latestCloseVal), append(latestDates, startDate), 0.0)
+			if errXirr != nil {
+				appUtil.AppLogger.Println(errXirr)
+				xirrSubPeriod = 0.0
+			}
+			xirrDateMap[startDateStr] = fmt.Sprintf("%.2f", xirrSubPeriod*100)
+
+		} else {
+			xirrSubPeriod, errXirr := fin.ScheduledInternalRateOfReturn(append(values, finalCloseVal), append(dates, startDate), 0.0)
+			if errXirr != nil {
+				appUtil.AppLogger.Println(errXirr)
+				xirrSubPeriod = 0.0
+			}
+			xirrDateMap[startDateStr] = fmt.Sprintf("%.2f", xirrSubPeriod*100)
+		}
+
+		/* Set to latest available values */
+		latestDates = dates
+		latestValues = values
+		latestCloseVal = finalCloseVal
+
+		/* Reset loop variables */
+		finalCloseVal = 0.0
+		values = values[:0]
+		dates = dates[:0]
+		startDate = startDate.AddDate(0, 0, 1)
+		skipDate = false
+	}
+
+	appUtil.AppLogger.Println("xirrDateMap ")
+	appUtil.AppLogger.Println(xirrDateMap)
+
+	return xirrDateMap, nil
 }
 
 /* ROUTER METHODS END */
@@ -1292,4 +1347,23 @@ func GetATHforCompanies() (map[string]data.CompaniesPriceData, error) {
 		companiesATHPriceCache = companiesATHMap
 		return companiesATHPriceCache, nil
 	}
+}
+
+/* Fetch Holdings grouped by Buy Date */
+func GetHoldingsDateWiseMapForUser(userInput []byte) map[string][]data.Holdings {
+
+	userHoldings, err := GetUserHoldings(userInput, false)
+	if err != nil {
+		appUtil.AppLogger.Println(err)
+	}
+
+	/* Form Map to hold buyDate - key, transactions as Value*/
+	holdingsMap := make(map[string][]data.Holdings)
+	for _, holding := range userHoldings.Holdings {
+		buyDate, _ := time.Parse("2006-01-02T15:04:05Z", holding.BuyDate)
+		buyDateStr := buyDate.Format("2006-01-02")
+		holdingsMap[buyDateStr] = append(holdingsMap[buyDateStr], holding)
+	}
+
+	return holdingsMap
 }

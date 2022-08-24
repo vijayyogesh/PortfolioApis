@@ -201,6 +201,14 @@ func ProcessAppRequests(w http.ResponseWriter, r *http.Request, appC AppControll
 		} else {
 			json.NewEncoder(w).Encode(resp)
 		}
+	} else if (r.URL.Path == constants.AppRouteCalculateXirrReturn) && (r.Method == http.MethodPost) {
+		/* Route to calculate Returns for PF */
+		resp, err := processor.CalculateXirrReturn(payload)
+		if err != nil {
+			json.NewEncoder(w).Encode(constants.AppErrCalculateXirrReturn)
+		} else {
+			json.NewEncoder(w).Encode(resp)
+		}
 	}
 
 }

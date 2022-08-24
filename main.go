@@ -42,6 +42,7 @@ func main() {
 	http.Handle(constants.AppRouteCalculateReturn, *appC)
 	http.Handle(constants.AppRouteCalculateIndexSIPReturn, *appC)
 	http.Handle(constants.AppRouteCalculateATHforPF, *appC)
+	http.Handle(constants.AppRouteCalculateXirrReturn, *appC)
 
 	appUtil.AppLogger.Println("----- STARTED PORTFOLIO APIS -----")
 

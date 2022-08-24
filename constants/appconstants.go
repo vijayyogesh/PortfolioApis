@@ -34,6 +34,7 @@ const (
 	AppRouteCalculateReturn         string = "/PortfolioApis/calculatereturn"
 	AppRouteCalculateIndexSIPReturn string = "/PortfolioApis/calculateindexsipreturn"
 	AppRouteCalculateATHforPF       string = "/PortfolioApis/calculateathforpf"
+	AppRouteCalculateXirrReturn     string = "/PortfolioApis/calculatexirrreturn"
 
 	/* Auth/JWT */
 	AppJWTAudience = "ApiUsers"
@@ -95,4 +96,6 @@ const (
 	AppSuccessCalculateReturn = "Calculated Return Successfuly !!"
 
 	AppErrCalculateATHforPF = "E213: Error while calculating ATH for PF"
+
+	AppErrCalculateXirrReturn = "E214: Error while calculating Xirr Return for PF"
 )
