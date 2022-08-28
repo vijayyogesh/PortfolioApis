@@ -704,16 +704,17 @@ func CalculateATHforPF(userInput []byte) (data.HoldingsOutputJson, error) {
 }
 
 /* 14) Calculate xirr values for Portfolio from start date to Now */
-func CalculateXirrReturn(userInput []byte) (map[string]string, error) {
+func CalculateXirrReturn(userInput []byte) (map[string]float64, error) {
 
 	/* Output map with xirr values */
-	var xirrDateMap map[string]string = make(map[string]string)
+	var xirrDateMap map[string]float64 = make(map[string]float64)
 
 	/* Fetch Holdings grouped by Buy Date */
-	holdingsDateMap := GetHoldingsDateWiseMapForUser(userInput)
+	holdingsDateMap, startDateTime := GetHoldingsDateWiseMapForUser(userInput)
 	var holdingsDataAsOfDate []data.Holdings
 
-	startDate, _ := time.Parse("2006/01/02", "2021/11/24")
+	//startDate, _ := time.Parse("2006/01/02", "2021/11/24")
+	startDate, _ := time.Parse("2006-01-02", startDateTime)
 	endDate := time.Now()
 
 	var dates []time.Time
@@ -761,7 +762,8 @@ func CalculateXirrReturn(userInput []byte) (map[string]string, error) {
 				appUtil.AppLogger.Println(errXirr)
 				xirrSubPeriod = 0.0
 			}
-			xirrDateMap[startDateStr] = fmt.Sprintf("%.2f", xirrSubPeriod*100)
+			xirrFloat, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", xirrSubPeriod*100), 64)
+			xirrDateMap[startDateStr] = xirrFloat
 
 		} else {
 			xirrSubPeriod, errXirr := fin.ScheduledInternalRateOfReturn(append(values, finalCloseVal), append(dates, startDate), 0.0)
@@ -769,13 +771,16 @@ func CalculateXirrReturn(userInput []byte) (map[string]string, error) {
 				appUtil.AppLogger.Println(errXirr)
 				xirrSubPeriod = 0.0
 			}
-			xirrDateMap[startDateStr] = fmt.Sprintf("%.2f", xirrSubPeriod*100)
+			xirrFloat, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", xirrSubPeriod*100), 64)
+			xirrDateMap[startDateStr] = xirrFloat
 		}
 
 		/* Set to latest available values */
-		latestDates = dates
-		latestValues = values
-		latestCloseVal = finalCloseVal
+		if !skipDate {
+			latestDates = dates
+			latestValues = values
+			latestCloseVal = finalCloseVal
+		}
 
 		/* Reset loop variables */
 		finalCloseVal = 0.0
@@ -1350,7 +1355,9 @@ func GetATHforCompanies() (map[string]data.CompaniesPriceData, error) {
 }
 
 /* Fetch Holdings grouped by Buy Date */
-func GetHoldingsDateWiseMapForUser(userInput []byte) map[string][]data.Holdings {
+func GetHoldingsDateWiseMapForUser(userInput []byte) (map[string][]data.Holdings, string) {
+
+	var startDate string
 
 	userHoldings, err := GetUserHoldings(userInput, false)
 	if err != nil {
@@ -1363,7 +1370,10 @@ func GetHoldingsDateWiseMapForUser(userInput []byte) map[string][]data.Holdings 
 		buyDate, _ := time.Parse("2006-01-02T15:04:05Z", holding.BuyDate)
 		buyDateStr := buyDate.Format("2006-01-02")
 		holdingsMap[buyDateStr] = append(holdingsMap[buyDateStr], holding)
+		if startDate == "" {
+			startDate = buyDateStr
+		}
 	}
 
-	return holdingsMap
+	return holdingsMap, startDate
 }
