@@ -354,6 +354,7 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 	var nonTrackedHoldingsMap map[string]float64 = make(map[string]float64)
 	var allocationMap map[string]float64 = make(map[string]float64)
 	var benchMarkMap map[string]float64 = make(map[string]float64)
+	var amountInvestedMap map[string]float64 = make(map[string]float64)
 
 	userHoldings, err := GetUserHoldings(userInput, false)
 	appUtil.AppLogger.Println(userHoldings)
@@ -393,6 +394,10 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 
 				/* Benchmark changes */
 				benchMarkData, bmDataExists := benchMarkRecordsMap[dateStr]
+
+				/* Amount Invested */
+				investedVal := float64(int((amountInvestedMap[dateStr]+(holdingsBuyValue))*100)) / 100
+				amountInvestedMap[dateStr] = investedVal
 
 				if ok && dailyData.CloseVal != 0 {
 					networthVal := float64(int((networthMap[dateStr]+(dailyData.CloseVal*qty))*100)) / 100
@@ -474,6 +479,7 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 	combinedOutputMap["equity"] = trackedHoldingsMap
 	combinedOutputMap["benchmark"] = benchMarkMap
 	combinedOutputMap["debt"] = nonTrackedHoldingsMap
+	combinedOutputMap["invested"] = amountInvestedMap
 
 	appUtil.AppLogger.Println("Completed FetchNetWorthOverPeriods")
 	return combinedOutputMap, nil
@@ -794,6 +800,13 @@ func CalculateXirrReturn(userInput []byte) (map[string]float64, error) {
 	appUtil.AppLogger.Println(xirrDateMap)
 
 	return xirrDateMap, nil
+}
+
+/* 14) Calculate nav style returns for Portfolio from start date to Now */
+func CalculateNavReturn(userInput []byte) (map[string]float64, error) {
+	/* Output map with NAV values */
+	var navDateMap map[string]float64 = make(map[string]float64)
+	return navDateMap, nil
 }
 
 /* ROUTER METHODS END */
