@@ -33,6 +33,8 @@ var usersCache map[string]data.User = make(map[string]data.User)
 
 var appUtil *util.AppUtil
 
+var benchmark = "BSE-500"
+
 /* Initializing Processor with required config */
 func InitProcessor(appUtilInput *util.AppUtil) {
 	appUtil = appUtilInput
@@ -366,7 +368,7 @@ func FetchNetWorthOverPeriods(userInput []byte) (map[string]map[string]float64, 
 		dailyPriceRecordsMap := FetchCompaniesCompletePrice(holdings.Companyid, appUtil.Db)
 
 		/* Benchmark changes */
-		benchMarkRecordsMap := FetchCompaniesCompletePrice("NSEI", appUtil.Db)
+		benchMarkRecordsMap := FetchCompaniesCompletePrice(benchmark, appUtil.Db)
 		holdingsQty, _ := strconv.ParseFloat(holdings.Quantity, 64)
 		holdingsBuyPrice, _ := strconv.ParseFloat(holdings.BuyPrice, 64)
 		holdingsBuyValue := holdingsBuyPrice * holdingsQty
@@ -710,28 +712,36 @@ func CalculateATHforPF(userInput []byte) (data.HoldingsOutputJson, error) {
 }
 
 /* 14) Calculate xirr values for Portfolio from start date to Now */
-func CalculateXirrReturn(userInput []byte) (map[string]float64, error) {
+func CalculateXirrReturn(userInput []byte) (map[string]map[string]float64, error) {
 
 	/* Output map with xirr values */
+	var combinedOutputMap map[string]map[string]float64 = make(map[string]map[string]float64)
 	var xirrDateMap map[string]float64 = make(map[string]float64)
+	var bmXirrDateMap map[string]float64 = make(map[string]float64)
 
 	/* Fetch Holdings grouped by Buy Date */
 	holdingsDateMap, startDateTime := GetHoldingsDateWiseMapForUser(userInput)
 	var holdingsDataAsOfDate []data.Holdings
 
-	//startDate, _ := time.Parse("2006/01/02", "2021/11/24")
 	startDate, _ := time.Parse("2006-01-02", startDateTime)
 	endDate := time.Now()
 
+	/* Exclude first 6 months in output for return */
+	cutOffDate := startDate.AddDate(0, 6, 0)
+
 	var dates []time.Time
 	var values []float64
+	var bmValues []float64
 	finalCloseVal := 0.0
+	bmFinalCloseVal := 0.0
 	skipDate := false
 
 	/* Added for cases where prices are zero */
 	var latestDates []time.Time
 	var latestValues []float64
 	latestCloseVal := 0.0
+	var bmLatestValues []float64
+	bmLatestCloseVal := 0.0
 
 	/* Loop all dates from PF start date */
 	for startDate.Before(endDate) || startDate.Equal(endDate) {
@@ -759,6 +769,14 @@ func CalculateXirrReturn(userInput []byte) (map[string]float64, error) {
 
 			values = append(values, qty*-holdingBuyPrice)
 			dates = append(dates, buyDate)
+
+			/* Benchmark changes */
+			bmDailyPriceRecordsMap := FetchCompaniesCompletePrice(benchmark, appUtil.Db)
+			bmCloseVal := bmDailyPriceRecordsMap[startDate.Format("2006-01-02")].CloseVal
+			bmBuyDateVal := bmDailyPriceRecordsMap[buyDate.Format("2006-01-02")].CloseVal
+			bmQty := (qty * holdingBuyPrice) / bmBuyDateVal
+			bmFinalCloseVal = bmFinalCloseVal + (bmQty * bmCloseVal)
+			bmValues = append(bmValues, bmQty*-bmBuyDateVal)
 		}
 
 		if skipDate {
@@ -769,8 +787,21 @@ func CalculateXirrReturn(userInput []byte) (map[string]float64, error) {
 				xirrSubPeriod = 0.0
 			}
 			xirrFloat, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", xirrSubPeriod*100), 64)
-			xirrDateMap[startDateStr] = xirrFloat
 
+			if startDate.After(cutOffDate) {
+				xirrDateMap[startDateStr] = xirrFloat
+			}
+
+			/* Benchmark changes */
+			bmXirrSubPeriod, bmErrXirr := fin.ScheduledInternalRateOfReturn(append(bmLatestValues, bmLatestCloseVal), append(latestDates, startDate), 0.0)
+			if bmErrXirr != nil {
+				appUtil.AppLogger.Println(bmErrXirr)
+				bmXirrSubPeriod = 0.0
+			}
+			bmXirrFloat, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", bmXirrSubPeriod*100), 64)
+			if startDate.After(cutOffDate) {
+				bmXirrDateMap[startDateStr] = bmXirrFloat
+			}
 		} else {
 			xirrSubPeriod, errXirr := fin.ScheduledInternalRateOfReturn(append(values, finalCloseVal), append(dates, startDate), 0.0)
 			if errXirr != nil {
@@ -778,7 +809,20 @@ func CalculateXirrReturn(userInput []byte) (map[string]float64, error) {
 				xirrSubPeriod = 0.0
 			}
 			xirrFloat, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", xirrSubPeriod*100), 64)
-			xirrDateMap[startDateStr] = xirrFloat
+			if startDate.After(cutOffDate) {
+				xirrDateMap[startDateStr] = xirrFloat
+			}
+
+			/* Benchmark changes */
+			bmXirrSubPeriod, bmErrXirr := fin.ScheduledInternalRateOfReturn(append(bmValues, bmFinalCloseVal), append(dates, startDate), 0.0)
+			if bmErrXirr != nil {
+				appUtil.AppLogger.Println(bmErrXirr)
+				xirrSubPeriod = 0.0
+			}
+			bmXirrFloat, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", bmXirrSubPeriod*100), 64)
+			if startDate.After(cutOffDate) {
+				bmXirrDateMap[startDateStr] = bmXirrFloat
+			}
 		}
 
 		/* Set to latest available values */
@@ -786,6 +830,10 @@ func CalculateXirrReturn(userInput []byte) (map[string]float64, error) {
 			latestDates = dates
 			latestValues = values
 			latestCloseVal = finalCloseVal
+
+			/* Benchmark changes */
+			bmLatestCloseVal = bmFinalCloseVal
+			bmLatestValues = bmValues
 		}
 
 		/* Reset loop variables */
@@ -794,12 +842,16 @@ func CalculateXirrReturn(userInput []byte) (map[string]float64, error) {
 		dates = dates[:0]
 		startDate = startDate.AddDate(0, 0, 1)
 		skipDate = false
+
+		/* Benchmark changes */
+		bmFinalCloseVal = 0.0
+		bmValues = bmValues[:0]
 	}
 
-	appUtil.AppLogger.Println("xirrDateMap ")
-	appUtil.AppLogger.Println(xirrDateMap)
+	combinedOutputMap["portfolioReturn"] = xirrDateMap
+	combinedOutputMap["benchmarkReturn"] = bmXirrDateMap
 
-	return xirrDateMap, nil
+	return combinedOutputMap, nil
 }
 
 /* 14) Calculate nav style returns for Portfolio from start date to Now */
@@ -1028,10 +1080,10 @@ func processDataErr(dataError error, k int, companyid string) {
 func FetchCompaniesCompletePrice(companyid string, db *sql.DB) map[string]data.CompaniesPriceData {
 	var dailyPriceRecordsMap map[string]data.CompaniesPriceData = make(map[string]data.CompaniesPriceData)
 	if dailyPriceCache[companyid] != nil {
-		appUtil.AppLogger.Println("FetchCompaniesCompletePrice - From Cache")
+		//appUtil.AppLogger.Println("FetchCompaniesCompletePrice - From Cache")
 		dailyPriceRecordsMap = dailyPriceCache[companyid]
 	} else {
-		appUtil.AppLogger.Println("FetchCompaniesCompletePrice - From DB")
+		//appUtil.AppLogger.Println("FetchCompaniesCompletePrice - From DB")
 		dailyPriceRecords := data.FetchCompaniesCompletePriceDataDB(companyid, db)
 		for _, priceData := range dailyPriceRecords {
 			dateStr := priceData.DateVal.Format("2006-01-02")
@@ -1047,9 +1099,9 @@ func FetchCompaniesCompletePrice(companyid string, db *sql.DB) map[string]data.C
 func LoadLatestCompaniesCompletePrice(companyid string, db *sql.DB) error {
 
 	if _, ok := dailyPriceCacheLatest[companyid]; ok {
-		appUtil.AppLogger.Println("LoadLatestCompaniesCompletePrice - Price data already in Cache")
+		//appUtil.AppLogger.Println("LoadLatestCompaniesCompletePrice - Price data already in Cache")
 	} else {
-		appUtil.AppLogger.Println("LoadLatestCompaniesCompletePrice - Loading Price Data From DB to Cache")
+		//appUtil.AppLogger.Println("LoadLatestCompaniesCompletePrice - Loading Price Data From DB to Cache")
 		dailyPriceRecordsLatest, err := data.FetchCompaniesLatestPriceDataDB(companyid, db)
 		if err != nil {
 			appUtil.AppLogger.Println(err)
